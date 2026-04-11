@@ -35,5 +35,5 @@ class CourseService:
         # 4. Thực thi truy vấn
         courses = query.all()
 
-        # Chuyển đổi list object sang list dictionary
+        # Chuyển đổi list object sang list dictionary.
         return [course.to_dict() for course in courses]
