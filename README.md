@@ -21,243 +21,38 @@ Dự án sử dụng **Flask (Backend)**, **ReactJS (Frontend)**, **MySQL**, và
 * Axios (call API)
 * React Router
 
----
+# Online Course Platform - Backend (Flask)
 
-## 🏗️ Cấu trúc thư mục
+Dự án hệ thống quản lý khóa học trực tuyến sử dụng Flask, MySQL và Cloudinary.
 
-```
-online-course/
-│
-├── be/                 # Flask Backend
-│   ├── app/
-│   ├── requirements.txt
-│   └── run.py
-│
-├── fe/                 # React Frontend
-│   ├── src/
-│   └── package.json
-│
-├── .env.example
-└── README.md
-```
+## 🛠 Bộ công nghệ (Tech Stack)
+- **Backend:** Flask (Python)
+- **Database:** MySQL
+- **ORM:** Flask-SQLAlchemy
+- **Authentication:** JWT (Flask-JWT-Extended)
+- **Storage:** Cloudinary (Lưu trữ hình ảnh/video)
+
+## 📁 Cấu trúc thư mục
+- `app/models/`: Định nghĩa cấu trúc database.
+- `app/routes/`: Xử lý các API endpoints.
+- `app/services/`: Logic xử lý nghiệp vụ.
+- `app/configs/`: Cấu hình hệ thống và kết nối DB.
+- `app/database/`: Các script khởi tạo database.
 
 ---
 
-## ⚙️ Cài đặt & chạy project
+## 🚀 Hướng dẫn cài đặt dành cho cộng tác viên
 
-### 🔹 1. Clone project
+Khi mới clone code từ GitHub về, các bạn thực hiện theo các bước sau để chạy dự án trên máy cá nhân:
 
+### Bước 1: Khởi tạo môi trường ảo (Virtual Environment)
+Mở terminal tại thư mục `backend/` và chạy:
 ```bash
-git clone https://github.com/your-username/online-course.git
-cd online-course
-```
-
----
-
-### 🔹 2. Backend (Flask)
-
-```bash
-cd be
+# Tạo môi trường ảo
 python -m venv venv
-venv\Scripts\activate   # Windows
-pip install -r requirements.txt
-```
 
-👉 Tạo file `.env`:
+# Kích hoạt (Windows)
+venv\Scripts\activate
 
-```
-DB_URL=mysql+pymysql://root:password@localhost/online_course
-SECRET_KEY=your_secret_key
-
-CLOUD_NAME=your_cloud_name
-API_KEY=your_api_key
-API_SECRET=your_api_secret
-```
-
-👉 Chạy server:
-
-```bash
-python run.py
-```
-
-📍 Backend chạy tại:
-
-```
-http://localhost:5000
-```
-
----
-
-### 🔹 3. Frontend (React)
-
-```bash
-cd fe
-npm install
-npm start
-```
-
-📍 Frontend chạy tại:
-
-```
-http://localhost:3000
-```
-
----
-
-## 🔗 API Documentation
-
-### 🔐 Authentication
-
-#### ✅ Đăng ký
-
-```
-POST /api/auth/register
-```
-
-**Body:**
-
-```json
-{
-  "username": "user1",
-  "password": "123456"
-}
-```
-
----
-
-#### ✅ Đăng nhập
-
-```
-POST /api/auth/login
-```
-
-**Response:**
-
-```json
-{
-  "token": "JWT_TOKEN"
-}
-```
-
----
-
-### 👤 User
-
-#### ✅ Lấy thông tin user
-
-```
-GET /api/users/me
-Authorization: Bearer <token>
-```
-
----
-
-### 📚 Course
-
-#### ✅ Lấy danh sách khóa học
-
-```
-GET /api/courses
-```
-
----
-
-#### ✅ Tạo khóa học (Admin)
-
-```
-POST /api/courses
-Authorization: Bearer <token>
-```
-
----
-
-### 🎬 Lesson
-
-#### ✅ Lấy danh sách bài học theo khóa học
-
-```
-GET /api/courses/{course_id}/lessons
-```
-
----
-
-### ☁️ Upload (Cloudinary)
-
-#### ✅ Upload video / ảnh
-
-```
-POST /api/upload
-```
-
-**Form-data:**
-
-```
-file: <file>
-```
-
-**Response:**
-
-```json
-{
-  "url": "https://res.cloudinary.com/..."
-}
-```
-
----
-
-### 📝 Enrollment
-
-#### ✅ Đăng ký khóa học
-
-```
-POST /api/enroll
-Authorization: Bearer <token>
-```
-
----
-
-## 🔄 Luồng hoạt động chính
-
-1. User đăng ký / đăng nhập
-2. Xem danh sách khóa học
-3. Đăng ký khóa học
-4. Xem bài học (video từ Cloudinary)
-
----
-
-## 🔐 Bảo mật
-
-* Sử dụng JWT Authentication
-* Không lưu thông tin nhạy cảm trong code
-* Dùng `.env` để quản lý config
-
----
-
-## 📸 Demo (có thể thêm sau)
-
-* Trang Home
-* Trang Course Detail
-* Trang Video Player
-
----
-
-## 👨‍💻 Thành viên nhóm
-
-* Nguyễn Văn A – Backend
-* Trần Văn B – Frontend
-* ...
-
----
-
-## 🚀 Hướng phát triển
-
-* Thanh toán online
-* Bình luận khóa học
-* Theo dõi tiến độ học
-* Admin dashboard
-
----
-
-## 📄 License
-
-Dự án phục vụ mục đích học tập.
+# Kích hoạt (Mac/Linux)
+source venv/bin/activate
