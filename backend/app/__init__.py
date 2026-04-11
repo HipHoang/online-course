@@ -4,6 +4,8 @@ from flask_cors import CORS
 from app.configs.db import db
 from app.configs.settings import Config
 import os
+from flask_jwt_extended import JWTManager
+
 def create_app():
     app = Flask(__name__)
 
@@ -17,7 +19,10 @@ def create_app():
     # 3. Khởi tạo Database
     db.init_app(app)
 
-    # 4. Đăng ký các Blueprints (Routes)
+    # 4. Khởi tạo JWTManager
+    jwt = JWTManager(app)
+
+    # 5. Đăng ký các Blueprints (Routes)
     from app.routes.auth_routes import auth_bp
     from app.routes.user_routes import user_bp
     from app.routes.course_routes import course_bp
