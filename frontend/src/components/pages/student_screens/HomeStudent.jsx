@@ -1,8 +1,12 @@
 import React from "react";
 import { FiChevronRight, FiPlay, FiStar } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 
-const GuestCourseCard = ({ title, author, price, tag, color, icon }) => (
-  <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all group cursor-pointer">
+const GuestCourseCard = ({ title, author, price, tag, color, icon, onClick }) => (
+  <div
+    onClick={onClick}
+    className="bg-white rounded-3xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all group cursor-pointer"
+  >
     <div className={`h-36 ${color} relative flex items-center justify-center text-4xl`}>
       <span className="group-hover:scale-110 transition-transform">{icon}</span>
       <span
@@ -30,17 +34,11 @@ const GuestCourseCard = ({ title, author, price, tag, color, icon }) => (
   </div>
 );
 
-const TopicCard = ({ icon, title }) => (
-  <div className="bg-white rounded-[18px] border border-gray-100 px-5 py-4 flex items-center gap-4 hover:shadow-md transition">
-    <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-2xl">
-      {icon}
-    </div>
-    <h4 className="font-semibold text-sm text-slate-700">{title}</h4>
-  </div>
-);
-
-const UserCourseCard = ({ title, author, price, tag, color }) => (
-  <div className="bg-white rounded-4xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all group cursor-pointer">
+const UserCourseCard = ({ title, author, price, tag, color, onClick }) => (
+  <div
+    onClick={onClick}
+    className="bg-white rounded-4xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all group cursor-pointer"
+  >
     <div className={`h-32 ${color} relative flex items-center justify-center text-4xl`}>
       <span className="group-hover:scale-110 transition-transform">📚</span>
       <span
@@ -51,7 +49,7 @@ const UserCourseCard = ({ title, author, price, tag, color }) => (
       </span>
     </div>
     <div className="p-5">
-      <h4 className="font-bold text-sm mb-1 group-hover:text-blue-600 transition-colors">
+      <h4 className="font-bold text-sm mb-1 group-hover:text-[#013396] transition-colors">
         {title}
       </h4>
       <p className="text-xs text-gray-400 mb-4">{author}</p>
@@ -66,10 +64,22 @@ const UserCourseCard = ({ title, author, price, tag, color }) => (
   </div>
 );
 
+const TopicCard = ({ icon, title }) => (
+  <div className="bg-white rounded-[18px] border border-gray-100 px-5 py-4 flex items-center gap-4 hover:shadow-md transition">
+    <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-2xl">
+      {icon}
+    </div>
+    <h4 className="font-semibold text-sm text-slate-700">{title}</h4>
+  </div>
+);
+
+
+
 const GuestHome = () => {
+  const navigate = useNavigate();
   return (
     <div className="space-y-10">
-      <section className="relative bg-linear-to-r from-[#0A328C] to-[#1163ff] rounded-[28px] px-8 py-10 md:px-12 md:py-12 overflow-hidden text-white flex flex-col md:flex-row items-center justify-between gap-8 shadow-xl shadow-blue-100">
+      <section className="relative bg-linear-to-r from-[#051e58] to-[#1758cf] rounded-[28px] px-8 py-10 md:px-12 md:py-12 overflow-hidden text-white flex flex-col md:flex-row items-center justify-between gap-8 shadow-xl shadow-blue-100">
         <div className="relative z-10 max-w-xl">
           <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-3">
             Học tập hiệu quả,
@@ -83,7 +93,7 @@ const GuestHome = () => {
             học tập cùng OU Education.
           </p>
 
-          <button className="bg-[#0B5CFF] hover:bg-blue-700 px-7 py-3 mt-4 rounded-full font-semibold transition-all flex items-center gap-2 group shadow-lg">
+          <button className="bg-[#0B5CFF] hover:bg-[#044794] px-7 py-3 mt-4 rounded-full font-semibold transition-all flex items-center gap-2 group shadow-lg">
             Khám phá khóa học
             <FiChevronRight className="group-hover:translate-x-1 transition-transform" />
           </button>
@@ -105,13 +115,13 @@ const GuestHome = () => {
           <div>
             <div className="flex justify-between items-center mb-5">
               <h2 className="text-2xl font-bold text-slate-800">Khóa học nổi bật</h2>
-              <button className="text-blue-600 text-sm font-medium flex items-center gap-1 hover:underline">
+              <button className="text-[#002B5B] text-sm font-medium flex items-center gap-1 hover:underline">
                 Xem tất cả <FiChevronRight />
               </button>
             </div>
 
             <div className="flex gap-3 mb-6">
-              <button className="px-5 py-2 bg-blue-600 text-white rounded-full text-sm font-medium">
+              <button className="px-5 py-2 bg-[#044794] text-white rounded-full text-sm font-medium">
                 Tất cả
               </button>
               <button className="px-5 py-2 bg-white text-gray-500 rounded-full text-sm font-medium border border-gray-100 hover:bg-gray-50">
@@ -123,43 +133,46 @@ const GuestHome = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-              <GuestCourseCard
+              <UserCourseCard
                 title="Tiếng Anh Giao Tiếp"
                 author="Cô Mai Anh"
                 price="799.000đ"
                 tag="PRO"
                 color="bg-blue-50"
-                icon="🇬🇧"
+                onClick={() => navigate("/courses/1")}
               />
-              <GuestCourseCard
+
+              <UserCourseCard
                 title="Ngữ Văn 12"
                 author="Thầy Lê Minh"
                 price="Miễn phí"
                 tag="FREE"
                 color="bg-purple-50"
-                icon="📖"
+                onClick={() => navigate("/courses/2")}
               />
-              <GuestCourseCard
-                title="Toán 10 - Số & Hình Học"
+
+              <UserCourseCard
+                title="Toán 10 - Đại Số"
                 author="Thầy Trần Quang"
                 price="699.000đ"
                 tag="PRO"
                 color="bg-green-50"
-                icon="🧮"
+                onClick={() => navigate("/courses/1")}
               />
-              <GuestCourseCard
+
+              <UserCourseCard
                 title="Hóa Học 11 Cơ Bản"
                 author="Cô Nguyễn Yến"
-                price="549.000đ"
+                price="599.000đ"
                 tag="PRO"
                 color="bg-orange-50"
-                icon="⚗️"
+                onClick={() => navigate("/courses/2")}
               />
             </div>
           </div>
 
           <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
-            <h3 className="text-[20px] md:text-[22px] font-bold text-slate-800 leading-snug mb-4">
+            <h3 className="text-[20px] md:text-[22px] font-bold text-[#002B5B] leading-snug mb-4">
               Tham gia học tập
               <br />
               cùng chúng tôi!
@@ -183,7 +196,7 @@ const GuestHome = () => {
                     new CustomEvent("openAuthModal", { detail: { type: "register" } })
                   )
                 }
-                className="flex-1 bg-[#0B5CFF] text-white rounded-full py-3 font-semibold hover:bg-blue-700 transition"
+                className="flex-1 bg-[#013396] text-white rounded-full py-3 font-semibold hover:bg-[#002B5B] transition"
               >
                 Đăng ký ngay
               </button>
@@ -194,7 +207,7 @@ const GuestHome = () => {
                     new CustomEvent("openAuthModal", { detail: { type: "login" } })
                   )
                 }
-                className="flex-1 bg-white border border-gray-200 text-slate-700 rounded-full py-3 font-semibold hover:bg-gray-50 transition"
+                className="flex-1 bg-white border border-gray-200 text-[#002B5B] rounded-full py-3 font-semibold hover:bg-gray-50 transition"
               >
                 Đăng nhập
               </button>
@@ -205,14 +218,14 @@ const GuestHome = () => {
       </section>
 
       <section>
-        <h2 className="text-2xl font-bold text-slate-800 mb-5">Chủ đề phổ biến</h2>
+        <h2 className="text-2xl font-bold text-[#002B5B] mb-5">Chủ đề phổ biến</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <TopicCard icon="🇬🇧" title="Tiếng Anh Giao Tiếp" />
+          <TopicCard icon="🇬🇧" title="English" />
           <TopicCard icon="🧮" title="Mathematics" />
           <TopicCard icon="⚗️" title="Chemistry" />
           <TopicCard icon="📘" title="Litterture" />
-          <TopicCard icon="⚙️" title="Công nghệ như 1" />
+          <TopicCard icon="⚙️" title="Technology" />
         </div>
       </section>
     </div>
@@ -223,7 +236,7 @@ const UserDashboard = ({ currentUser }) => {
   return (
     <div className="flex flex-col lg:flex-row gap-8">
       <div className="flex-1 space-y-10">
-        <div className="relative bg-[#003580] rounded-4xl p-8 md:p-12 overflow-hidden text-white flex items-center justify-between shadow-xl shadow-blue-100">
+        <div className="relative bg-[#002B5B] rounded-4xl p-8 md:p-12 overflow-hidden text-white flex items-center justify-between shadow-xl shadow-blue-100">
           <div className="relative z-10 max-w-lg">
             <h1 className="text-3xl md:text-4xl font-bold mb-4">
               Chào {currentUser.fullName}! 👋
@@ -253,13 +266,13 @@ const UserDashboard = ({ currentUser }) => {
         <section>
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold text-slate-800">Khóa học nổi bật</h2>
-            <button className="text-blue-600 text-sm font-medium flex items-center gap-1 hover:underline">
+            <button className="text-[#044794] text-sm font-medium flex items-center gap-1 hover:underline">
               Xem tất cả <FiChevronRight />
             </button>
           </div>
 
           <div className="flex gap-3 mb-6">
-            <button className="px-5 py-2 bg-blue-600 text-white rounded-full text-sm font-medium">
+            <button className="px-5 py-2 bg-[#044794] text-white rounded-full text-sm font-medium">
               Tất cả
             </button>
             <button className="px-5 py-2 bg-white text-gray-500 rounded-full text-sm font-medium border border-gray-100 hover:bg-gray-50">
@@ -305,7 +318,7 @@ const UserDashboard = ({ currentUser }) => {
         <section>
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold text-slate-800">Tiếp tục học</h2>
-            <button className="text-blue-600 text-sm font-medium hover:underline flex items-center gap-1">
+            <button className="text-[#044794] text-sm font-medium hover:underline flex items-center gap-1">
               Xem tất cả <FiChevronRight />
             </button>
           </div>

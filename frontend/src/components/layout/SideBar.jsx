@@ -28,7 +28,7 @@ const Sidebar = ({ isExpanded, setIsExpanded }) => {
   ];
 
   return (
-    <div className="h-full flex flex-col p-4 text-white bg-[#07152B]">
+    <div className="h-full flex flex-col p-4 text-white bg-[#021e4b]">
       <div className="mb-8 flex justify-end">
         <button
           onClick={() => setIsExpanded(!isExpanded)}

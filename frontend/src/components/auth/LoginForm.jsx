@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { mockUsers, saveCurrentUser } from "../../data/mockAuth";
+import { loginApi } from "../../services/authService";
 
 const LoginForm = ({ onSwitchType }) => {
   const [form, setForm] = useState({
@@ -10,6 +10,7 @@ const LoginForm = ({ onSwitchType }) => {
 
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -22,18 +23,13 @@ const LoginForm = ({ onSwitchType }) => {
   const validate = () => {
     const newErrors = {};
 
-    if (!form.email.trim()) {
-      newErrors.email = "Trường này không được để trống";
-    }
-
-    if (!form.password.trim()) {
-      newErrors.password = "Trường này không được để trống";
-    }
+    if (!form.email.trim()) newErrors.email = "Trường này không được để trống";
+    if (!form.password.trim()) newErrors.password = "Trường này không được để trống";
 
     return newErrors;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     const newErrors = validate();
@@ -42,19 +38,27 @@ const LoginForm = ({ onSwitchType }) => {
 
     if (Object.keys(newErrors).length > 0) return;
 
-    const foundUser = mockUsers.find(
-      (user) =>
-        user.email === form.email.trim() &&
-        user.password === form.password.trim()
-    );
+    try {
+      setLoading(true);
 
-    if (!foundUser) {
-      setSubmitError("Email hoặc mật khẩu không đúng");
-      return;
+      const data = await loginApi({
+        email: form.email.trim(),
+        password: form.password.trim(),
+      });
+
+      localStorage.setItem("currentUser", JSON.stringify(data));
+
+      window.location.href = "/";
+    } catch (error) {
+      console.error(error);
+      setSubmitError(
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        "Email hoặc mật khẩu không đúng"
+      );
+    } finally {
+      setLoading(false);
     }
-
-    saveCurrentUser(foundUser);
-    window.location.href = "/";
   };
 
   return (
@@ -71,14 +75,14 @@ const LoginForm = ({ onSwitchType }) => {
         <div>
           <div className="mb-2 flex items-center justify-between">
             <label className="text-sm font-semibold text-gray-700">
-              Tên đăng nhập
+              Tên đăng nhập (Gmail của bạn)
             </label>
           </div>
 
           <input
             type="text"
             name="email"
-            placeholder="Email hoặc Username"
+            placeholder="Email"
             value={form.email}
             onChange={handleChange}
             className={`w-full rounded-full border px-5 py-3 outline-none transition ${
@@ -89,9 +93,7 @@ const LoginForm = ({ onSwitchType }) => {
           />
 
           {errors.email && (
-            <p className="mt-2 text-sm font-medium text-red-500">
-              {errors.email}
-            </p>
+            <p className="mt-2 text-sm font-medium text-red-500">{errors.email}</p>
           )}
         </div>
 
@@ -110,9 +112,7 @@ const LoginForm = ({ onSwitchType }) => {
           />
 
           {errors.password && (
-            <p className="mt-2 text-sm font-medium text-red-500">
-              {errors.password}
-            </p>
+            <p className="mt-2 text-sm font-medium text-red-500">{errors.password}</p>
           )}
         </div>
 
@@ -133,17 +133,12 @@ const LoginForm = ({ onSwitchType }) => {
 
         <button
           type="submit"
-          className="w-full rounded-full bg-[#002B5B] py-3 text-lg font-semibold text-white shadow-md transition hover:bg-[#003a78] active:scale-[0.98]"
+          disabled={loading}
+          className="w-full rounded-full bg-[#002B5B] py-3 text-lg font-semibold text-white shadow-md transition hover:bg-[#003a78] active:scale-[0.98] disabled:opacity-70"
         >
-          Đăng nhập
+          {loading ? "Đang đăng nhập..." : "Đăng nhập"}
         </button>
       </form>
-
-      <div className="mt-5 rounded-2xl bg-blue-50 border border-blue-100 p-4 text-sm text-slate-700">
-        <p className="font-semibold mb-1">Tài khoản test:</p>
-        <p>Email: student@ou.edu.vn</p>
-        <p>Password: 123456</p>
-      </div>
 
       <div className="mt-8 text-center text-sm text-gray-700">
         Bạn chưa có tài khoản?{" "}
@@ -155,19 +150,6 @@ const LoginForm = ({ onSwitchType }) => {
           Đăng ký
         </button>
       </div>
-
-      <div className="mt-3 text-center">
-        <button
-          type="button"
-          className="text-sm font-medium text-[#002B5B] hover:underline"
-        >
-          Quên mật khẩu?
-        </button>
-      </div>
-
-      <p className="mx-auto mt-8 max-w-130 text-center text-xs leading-5 text-gray-400">
-        Việc bạn tiếp tục sử dụng trang web này đồng nghĩa bạn đồng ý với điều khoản sử dụng của chúng tôi.
-      </p>
     </div>
   );
 };

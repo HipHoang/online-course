@@ -207,7 +207,7 @@ const Header = () => {
                 setAuthType("register");
                 setOpenModal(true);
               }}
-              className="px-6 py-2.5 text-base font-semibold text-white bg-[#0B5CFF] rounded-full hover:bg-[#0047d9] shadow-md transition-all active:scale-95"
+              className="px-6 py-2.5 text-base font-semibold text-white bg-[#013396] rounded-full hover:bg-[#002B5B] shadow-md transition-all active:scale-95"
             >
               Đăng ký
             </button>
@@ -239,7 +239,7 @@ const Header = () => {
                 onClick={() => setShowUserMenu((prev) => !prev)}
                 className="flex items-center gap-3"
               >
-                <div className="w-12 h-12 rounded-full bg-[#0B5CFF] text-white flex items-center justify-center font-bold text-lg">
+                <div className="w-12 h-12 rounded-full bg-[#002B5B] text-white flex items-center justify-center font-bold text-lg">
                   {currentUser.avatar || currentUser.fullName?.slice(0, 2)}
                 </div>
 
