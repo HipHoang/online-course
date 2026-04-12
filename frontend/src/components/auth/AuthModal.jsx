@@ -4,8 +4,8 @@ import RegisterForm from "./RegisterForm";
 
 const AuthModal = ({ type = "login", onClose, onSwitchType }) => {
   return (
-    <div className="fixed inset-0 z-999 flex items-center justify-center bg-black/45 px-4">
-      <div className="relative w-full max-w-130 rounded-[28px] bg-white shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-999 flex items-center justify-center bg-black/45 px-4 py-6 overflow-y-auto">
+      <div className="relative w-full max-w-130 max-h-[90vh] rounded-[28px] bg-white shadow-2xl overflow-y-auto">
         {/* nền nhạt */}
         <div className="absolute inset-0 bg-linear-to-br from-blue-50 via-white to-slate-50 "></div>
 
@@ -33,11 +33,11 @@ const AuthModal = ({ type = "login", onClose, onSwitchType }) => {
               <span className="text-2xl font-extrabold tracking-wide">OU</span>
             </div>
           </div>
-            {type === "login" ? (
-              <LoginForm onSwitchType={onSwitchType} />
-            ) : (
-              <RegisterForm onSwitchType={onSwitchType} />
-            )}
+          {type === "login" ? (
+            <LoginForm onSwitchType={onSwitchType} />
+          ) : (
+            <RegisterForm onSwitchType={onSwitchType} />
+          )}
         </div>
       </div>
     </div>

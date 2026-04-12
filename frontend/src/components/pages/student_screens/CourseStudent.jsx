@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FiBookOpen, FiCheckCircle, FiFilter, FiPlay, FiSearch } from 'react-icons/fi';
 
 const CourseStudent = ({ courses }) => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
   // Dữ liệu gán cứng mặc định nếu không có props truyền vào
   const defaultCourses = [
     {
@@ -47,6 +49,21 @@ const CourseStudent = ({ courses }) => {
   ];
 
   const displayCourses = courses || defaultCourses;
+  const filteredCourses = displayCourses.filter((course) => {
+    const matchSearch =
+      course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      course.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      course.status.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchTab =
+      activeTab === "all"
+        ? true
+        : activeTab === "learning"
+          ? course.status === "Đang học"
+          : course.status === "Hoàn thành";
+
+    return matchSearch && matchTab;
+  });
 
   return (
     <div className="space-y-8">
@@ -60,9 +77,11 @@ const CourseStudent = ({ courses }) => {
         <div className="flex items-center gap-3">
           <div className="relative">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input 
-              type="text" 
-              placeholder="Tìm khóa học..." 
+            <input
+              type="text"
+              placeholder="Tìm khóa học..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 pr-4 py-2 bg-white border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
             />
           </div>
@@ -81,13 +100,13 @@ const CourseStudent = ({ courses }) => {
 
       {/* 3. Danh sách khóa học (Grid) */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {displayCourses.map((course) => (
-          <div key={course.id} className="bg-white rounded-[2rem] border border-gray-100 overflow-hidden hover:shadow-xl transition-all group">
+        {filteredCourses.map((course) => (
+          <div key={course.id} className="bg-white rounded-4xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all group">
             {/* Ảnh khóa học */}
             <div className="relative h-48 overflow-hidden">
-              <img 
-                src={course.image} 
-                alt={course.title} 
+              <img
+                src={course.image}
+                alt={course.title}
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
               />
               <div className="absolute top-4 left-4">
@@ -109,7 +128,7 @@ const CourseStudent = ({ courses }) => {
               <h3 className="font-bold text-slate-800 mb-2 line-clamp-1 group-hover:text-blue-600 transition-colors">
                 {course.title}
               </h3>
-              
+
               <div className="flex items-center gap-2 text-xs text-slate-400 mb-6">
                 <FiBookOpen />
                 <span>{course.completedLessons}/{course.totalLessons} bài học</span>
@@ -122,7 +141,7 @@ const CourseStudent = ({ courses }) => {
                   <span className="text-blue-600 font-bold">{course.progress}%</span>
                 </div>
                 <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className={`h-full transition-all duration-1000 ${course.progress === 100 ? 'bg-green-500' : 'bg-blue-600'}`}
                     style={{ width: `${course.progress}%` }}
                   ></div>
@@ -131,8 +150,8 @@ const CourseStudent = ({ courses }) => {
 
               {/* Nút hành động */}
               <button className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all
-                ${course.progress === 100 
-                  ? 'bg-green-50 text-green-600 hover:bg-green-100' 
+                ${course.progress === 100
+                  ? 'bg-green-50 text-green-600 hover:bg-green-100'
                   : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200 active:scale-95'}`}
               >
                 {course.progress === 100 ? 'Xem chứng chỉ' : (
