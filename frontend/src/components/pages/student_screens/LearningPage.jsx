@@ -42,7 +42,13 @@ const LearningPage = () => {
       });
 
       setOpenChapters(initialState);
-      setCurrentLesson(foundLesson || data.chapters?.[0]?.lessons?.[0] || null);
+
+      const firstLesson =
+        data?.chapters?.[0]?.lessons?.[0] ||
+        data?.lessons?.[0] ||
+        null;
+
+      setCurrentLesson(foundLesson || firstLesson);
     };
 
     fetchCourse();
@@ -92,8 +98,16 @@ const LearningPage = () => {
     }));
   };
 
-  if (!course || !currentLesson) {
+  if (!course) {
     return <div className="p-6">Đang tải bài học...</div>;
+  }
+
+  if (!currentLesson) {
+    return (
+      <div className="p-6">
+        Khóa học này hiện chưa có bài học để hiển thị.
+      </div>
+    );
   }
 
   return (
@@ -180,9 +194,8 @@ const LearningPage = () => {
                   </p>
                 </div>
                 <FiChevronDown
-                  className={`transition-transform ${
-                    openChapters[chapter.id] ? "rotate-180" : ""
-                  }`}
+                  className={`transition-transform ${openChapters[chapter.id] ? "rotate-180" : ""
+                    }`}
                 />
               </button>
 
@@ -192,9 +205,8 @@ const LearningPage = () => {
                     <button
                       key={lesson.id}
                       onClick={() => handleSelectLesson(lesson)}
-                      className={`w-full text-left px-4 py-4 flex items-center justify-between hover:bg-blue-50 ${
-                        currentLesson.id === lesson.id ? "bg-orange-50" : ""
-                      }`}
+                      className={`w-full text-left px-4 py-4 flex items-center justify-between hover:bg-blue-50 ${currentLesson.id === lesson.id ? "bg-orange-50" : ""
+                        }`}
                     >
                       <div>
                         <p className="text-slate-800">

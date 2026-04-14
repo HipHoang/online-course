@@ -38,20 +38,20 @@ class CourseService:
         # Chuyển đổi list object sang list dictionary.
         return [course.to_dict() for course in courses]
 
-def get_courses_service(page=1, size=10, keyword=None, sort='id'):
 
+def get_courses_service(page=1, size=10, keyword=None, sort='id'):
     query = Course.query
-    #Search
+    # Search
     if keyword:
         query = query.filter(Course.title.contains(keyword))
-    #Sort
+    # Sort
     if hasattr(Course, sort):
         query = query.order_by(getattr(Course, sort))
-    #record
+    # record
     total = query.count()
-    #offset
+    # offset
     offset = (page - 1) * size
-    #data
+    # data
     courses = query.offset(offset).limit(size).all()
 
     return {
@@ -61,6 +61,7 @@ def get_courses_service(page=1, size=10, keyword=None, sort='id'):
         "total_pages": (total + size - 1) // size,
         "results": [c.to_dict() for c in courses]
     }
+
 
 def get_course_detail_service(course_id):
     course = Course.query.get(course_id)
@@ -73,6 +74,7 @@ def get_course_detail_service(course_id):
         "title": course.title,
         "description": course.description,
         "price": course.price,
+        "image": course.image,
         "instructor": {
             "id": course.instructor_id,
             "name": course.instructor.name if course.instructor else "Unknown"

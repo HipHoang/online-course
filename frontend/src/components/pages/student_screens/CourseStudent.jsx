@@ -48,7 +48,7 @@ const CourseStudent = () => {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 px-8">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

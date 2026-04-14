@@ -5,6 +5,7 @@ import CourseStudent from "./components/pages/student_screens/CourseStudent";
 import HomeStudent from "./components/pages/student_screens/HomeStudent";
 import CourseDetail from "./components/pages/student_screens/CourseDetail";
 import LearningPage from "./components/pages/student_screens/LearningPage";
+import AllCourses from "./components/pages/student_screens/AllCourses";
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Routes>
           <Route path="/" element={<HomeStudent />} />
           <Route path="/courses" element={<CourseStudent />} />
+          <Route path="/all-courses" element={<AllCourses />} />
           <Route path="/courses/:id" element={<CourseDetail />} />
           <Route path="/pathway" element={<div>Trang lộ trình học</div>} />
           <Route path="/qa" element={<div>Trang hỏi đáp</div>} />

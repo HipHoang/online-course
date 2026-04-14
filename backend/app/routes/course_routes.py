@@ -5,6 +5,7 @@ from app.services.course_service import get_courses_service, get_course_detail_s
 
 course_bp = Blueprint('course_bp', __name__)
 
+
 @course_bp.route('/search', methods=['GET'])
 def search():
     try:
@@ -16,26 +17,27 @@ def search():
 
         # Gọi logic từ Service
         data = CourseService.search_and_sort_courses(
-            keyword=keyword, 
-            topic=topic, 
-            sort_by=sort_by, 
+            keyword=keyword,
+            topic=topic,
+            sort_by=sort_by,
             order=order
         )
 
         # Trả về kết quả thông qua Util Response
         return success_response(
-            data=data, 
+            data=data,
             message=f"Tìm thấy {len(data)} khóa học"
         )
 
     except Exception as e:
         return error_response(message=str(e), status_code=500)
 
+
 course_bp = Blueprint('course_bp', __name__)
+
 
 @course_bp.route('/', methods=['GET'])
 def get_courses():
-
     page = request.args.get('page', 1, type=int)
     size = min(request.args.get('size', 10, type=int), 50)
 
@@ -45,6 +47,7 @@ def get_courses():
     data = get_courses_service(page, size, keyword, sort)
 
     return jsonify(data), 200
+
 
 @course_bp.route('/<int:course_id>', methods=['GET'])
 def get_course_detail(course_id):

@@ -1,17 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import AuthModal from "../auth/AuthModal";
 import { logoutUser } from "../../data/mockAuth";
-
-const MOCK_COURSES = [
-  { id: 1, title: "Lập trình ReactJS Pro", category: "Công nghệ" },
-  { id: 2, title: "Tiếng Anh Giao Tiếp 1", category: "Ngoại ngữ" },
-  { id: 3, title: "Toán học 10 - Đại số", category: "Giáo dục" },
-  { id: 4, title: "NodeJS Backend Master", category: "Công nghệ" },
-  { id: 5, title: "Kỹ năng Viết bài chuyên nghiệp", category: "Kỹ năng" },
-  { id: 6, title: "UI/UX Design với Figma", category: "Thiết kế" },
-];
+import { courseService } from "../../services/courseService";
 
 const Header = () => {
+  const navigate = useNavigate();
+
   const [openModal, setOpenModal] = useState(false);
   const [authType, setAuthType] = useState("login");
 
@@ -32,9 +27,9 @@ const Header = () => {
       setAuthType(type);
       setOpenModal(true);
     };
-  
+
     window.addEventListener("openAuthModal", handleOpenAuthModal);
-  
+
     return () => {
       window.removeEventListener("openAuthModal", handleOpenAuthModal);
     };
@@ -65,13 +60,20 @@ const Header = () => {
     setIsSearching(true);
     setShowResults(true);
 
-    const delayDebounceFn = setTimeout(() => {
-      const filtered = MOCK_COURSES.filter((course) =>
-        course.title.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-
-      setResults(filtered);
-      setIsSearching(false);
+    const delayDebounceFn = setTimeout(async () => {
+      try {
+        const data = await courseService.searchCourses({
+          q: searchTerm,
+          sort_by: "id",
+          order: "asc",
+        });
+        setResults(data);
+      } catch (error) {
+        console.error("Lỗi tìm kiếm khóa học:", error);
+        setResults([]);
+      } finally {
+        setIsSearching(false);
+      }
     }, 400);
 
     return () => clearTimeout(delayDebounceFn);
@@ -132,6 +134,13 @@ const Header = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onFocus={() => searchTerm && setShowResults(true)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && results.length > 0) {
+                  setShowResults(false);
+                  navigate(`/courses/${results[0].id}`);
+                  setSearchTerm("");
+                }
+              }}
               placeholder="Tìm kiếm khóa học, bài viết..."
               className="w-full py-3 pl-14 pr-4 bg-[#F0F2F5] border border-transparent rounded-full focus:bg-white focus:border-[#002B5B] focus:ring-1 focus:ring-[#002B5B] outline-none transition-all text-base"
             />
@@ -154,6 +163,11 @@ const Header = () => {
                   {results.map((item) => (
                     <li
                       key={item.id}
+                      onClick={() => {
+                        setShowResults(false);
+                        setSearchTerm("");
+                        navigate(`/courses/${item.id}`);
+                      }}
                       className="px-6 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center group transition-colors"
                     >
                       <div>
@@ -161,7 +175,7 @@ const Header = () => {
                           {item.title}
                         </p>
                         <p className="text-xs text-gray-400">
-                          {item.category}
+                          {item.topic || item.category || item.description || "Khóa học"}
                         </p>
                       </div>
                       <svg
