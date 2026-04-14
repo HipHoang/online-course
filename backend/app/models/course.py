@@ -7,17 +7,20 @@ class Course(db.Model):
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     price = db.Column(db.Float)
+    image = db.Column(db.String(255))
     instructor_id = db.Column(db.Integer, db.ForeignKey('users.user_id'))
 
     # Kết nối với bảng User
     instructor = db.relationship('User', backref='courses')
-
+    # Kết nối với bảng Courses
+    lessons = db.relationship('Lesson', backref='course', lazy=True)
     def to_dict(self):
         return {
             "course_id": self.course_id,
             "title": self.title,
             "description": self.description,
             "price": self.price,
+            "image": self.image,
             "instructor_id": self.instructor_id,
             "instructor_name": self.instructor.name if self.instructor else "Unknown"
         }
