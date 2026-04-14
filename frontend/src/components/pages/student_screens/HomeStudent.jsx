@@ -154,7 +154,7 @@ const GuestHome = () => {
         <div className="relative z-10 flex items-center justify-center">
           <img
             src={bannerImg}
-            alt="Học tập"
+            alt="Laptop"
             className="hidden md:block h-64 lg:h-72 object-contain drop-shadow-2xl rounded-2xl"
           />
         </div>
