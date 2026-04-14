@@ -7,3 +7,5 @@ class Lesson(db.Model):
     title = db.Column(db.String(255), nullable=False)
     content = db.Column(db.Text)
     video_url = db.Column(db.String(255))
+
+    documents = db.relationship('Document', backref='lessons', lazy=True)

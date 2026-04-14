@@ -11,7 +11,8 @@ class Course(db.Model):
 
     # Kết nối với bảng User
     instructor = db.relationship('User', backref='courses')
-
+    # Kết nối với bảng Courses
+    lessons = db.relationship('Lesson', backref='course', lazy=True)
     def to_dict(self):
         return {
             "course_id": self.course_id,
