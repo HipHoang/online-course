@@ -20,7 +20,7 @@ export const enrollmentService = {
     if (!currentUser) return [];
 
     const all = getAllEnrollments();
-    return all[currentUser.id] || [];
+    return all[currentUser.user_id] || [];
   },
 
   isEnrolled(courseId) {
@@ -28,7 +28,7 @@ export const enrollmentService = {
     if (!currentUser) return false;
 
     const all = getAllEnrollments();
-    const myCourses = all[currentUser.id] || [];
+    const myCourses = all[currentUser.user_id] || [];
     return myCourses.some((item) => item.courseId === Number(courseId));
   },
 
@@ -39,7 +39,7 @@ export const enrollmentService = {
     }
 
     const all = getAllEnrollments();
-    const myCourses = all[currentUser.id] || [];
+    const myCourses = all[currentUser.user_id] || [];
 
     const existed = myCourses.find((item) => item.courseId === course.id);
     if (existed) return existed;
@@ -59,7 +59,7 @@ export const enrollmentService = {
       status: "Đang học",
     };
 
-    all[currentUser.id] = [...myCourses, enrolledCourse];
+    all[currentUser.user_id] = [...myCourses, enrolledCourse];
     saveAllEnrollments(all);
 
     return enrolledCourse;
@@ -70,7 +70,7 @@ export const enrollmentService = {
     if (!currentUser) return;
 
     const all = getAllEnrollments();
-    const myCourses = all[currentUser.id] || [];
+    const myCourses = all[currentUser.user_id] || [];
 
     const updated = myCourses.map((item) => {
       if (item.courseId !== Number(courseId)) return item;
@@ -90,7 +90,7 @@ export const enrollmentService = {
       };
     });
 
-    all[currentUser.id] = updated;
+    all[currentUser.user_id] = updated;
     saveAllEnrollments(all);
   },
 };

@@ -1,16 +1,43 @@
-from flask import Blueprint, request, jsonify
-from app.services import auth_service
+from flask import Blueprint, request
+from app.services.auth_service import register_user, login_user
 
-auth_bp = Blueprint('auth', __name__)
+auth_bp = Blueprint('auth_bp', __name__)
 
+# =========================
+# REGISTER
+# =========================
 @auth_bp.route('/register', methods=['POST'])
 def register():
-    data = request.get_json()
-    result, status = auth_service.register_user(data['email'], data['password'], data['name'],data["role"])
-    return jsonify(result), status
+    try:
+        data = request.get_json()
 
+        username = data.get("email")
+        password = data.get("password")
+        name = data.get("name")
+        role = data.get("role", "student")
+
+        result, status = register_user(username, password, name, role)
+
+        return result, status  # ✅ đúng
+
+    except Exception as e:
+        return {"message": str(e)}, 500
+
+
+# =========================
+# LOGIN
+# =========================
 @auth_bp.route('/login', methods=['POST'])
 def login():
-    data = request.get_json()
-    result, status = auth_service.login_user(data['email'], data['password'])
-    return jsonify(result), status
+    try:
+        data = request.get_json()
+
+        username = data.get("email")
+        password = data.get("password")
+
+        result, status = login_user(username, password)
+
+        return result, status  # ✅ đúng
+
+    except Exception as e:
+        return {"message": str(e)}, 500

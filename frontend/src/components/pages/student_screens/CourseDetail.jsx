@@ -129,33 +129,59 @@ const CourseDetail = () => {
       return;
     }
 
+    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+
+    if (!currentUser) {
+      alert("Bạn cần đăng nhập");
+      return;
+    }
+
     setIsProcessingPayment(true);
 
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+try {
+  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
 
-      enrollmentService.enrollCourse({
-        ...course,
-        paymentMethod,
-        paidAt: new Date().toISOString(),
-      });
+  if (paymentMethod === "vnpay") {
+    const res = await fetch("http://127.0.0.1:5000/api/payment/checkout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_id: currentUser.user_id,
+        course_id: course.id,
+        amount: course.price,
+      }),
+    });
 
-      setIsEnrolled(true);
-      setShowPaymentModal(false);
+    const data = await res.json();
 
-      alert(
-        paymentMethod === "momo"
-          ? "Thanh toán MoMo thành công! Bạn đã được đăng ký khóa học."
-          : "Thanh toán thành công! Bạn đã được đăng ký khóa học."
-      );
-
-      navigate(`/learn/${course.id}`);
-    } catch (error) {
-      console.error(error);
-      alert("Thanh toán thất bại. Vui lòng thử lại.");
-    } finally {
-      setIsProcessingPayment(false);
+    if (!data.payment_url) {
+      throw new Error("Không lấy được link VNPay");
     }
+
+    window.location.href = data.payment_url;
+    return;
+  }
+
+  // 🟡 Mock cho MoMo / Card
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  enrollmentService.enrollCourse({
+    ...course,
+    paymentMethod,
+    paidAt: new Date().toISOString(),
+  });
+
+  alert("Thanh toán thành công!");
+  navigate(`/learn/${course.id}`);
+
+} catch (error) {
+  console.error(error);
+  alert("Không thể tạo thanh toán");
+} finally {
+  setIsProcessingPayment(false);
+}
   };
 
   const handleLearnNow = () => {
@@ -276,9 +302,8 @@ const CourseDetail = () => {
                       </div>
 
                       <FiChevronDown
-                        className={`text-slate-500 transition-transform ${
-                          openChapters[chapter.id] ? "rotate-180" : ""
-                        }`}
+                        className={`text-slate-500 transition-transform ${openChapters[chapter.id] ? "rotate-180" : ""
+                          }`}
                       />
                     </button>
 
@@ -513,11 +538,10 @@ const CourseDetail = () => {
 
                   <div className="space-y-3">
                     <label
-                      className={`flex items-center gap-4 p-4 mt-4 rounded-2xl border cursor-pointer transition ${
-                        paymentMethod === "momo"
-                          ? "border-pink-500 bg-pink-50"
-                          : "border-gray-200 hover:bg-gray-50"
-                      }`}
+                      className={`flex items-center gap-4 p-4 mt-4 rounded-2xl border cursor-pointer transition ${paymentMethod === "momo"
+                        ? "border-pink-500 bg-pink-50"
+                        : "border-gray-200 hover:bg-gray-50"
+                        }`}
                     >
                       <input
                         type="radio"
@@ -540,35 +564,33 @@ const CourseDetail = () => {
                     </label>
 
                     <label
-                      className={`flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition ${
-                        paymentMethod === "banking"
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 hover:bg-gray-50"
-                      }`}
+                      className={`flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition ${paymentMethod === "vnpay"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:bg-gray-50"
+                        }`}
                     >
                       <input
                         type="radio"
                         name="paymentMethod"
-                        checked={paymentMethod === "banking"}
-                        onChange={() => setPaymentMethod("banking")}
+                        checked={paymentMethod === "vnpay"}
+                        onChange={() => setPaymentMethod("vnpay")}
                       />
                       <div className="w-11 h-11 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
                         <FiCreditCard size={20} />
                       </div>
                       <div>
-                        <p className="font-semibold text-slate-800">Internet Banking</p>
+                        <p className="font-semibold text-slate-800">VNPay</p>
                         <p className="text-sm text-slate-500">
-                          Mô phỏng thanh toán qua tài khoản ngân hàng.
+                          Thanh toán qua cổng VNPay (ATM, QR, Internet Banking).
                         </p>
                       </div>
                     </label>
 
                     <label
-                      className={`flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition ${
-                        paymentMethod === "card"
-                          ? "border-violet-500 bg-violet-50"
-                          : "border-gray-200 hover:bg-gray-50"
-                      }`}
+                      className={`flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition ${paymentMethod === "card"
+                        ? "border-violet-500 bg-violet-50"
+                        : "border-gray-200 hover:bg-gray-50"
+                        }`}
                     >
                       <input
                         type="radio"
@@ -611,8 +633,8 @@ const CourseDetail = () => {
                     {isProcessingPayment
                       ? "Đang xử lý thanh toán..."
                       : paymentMethod === "momo"
-                      ? "Thanh toán với MoMo"
-                      : "Xác nhận thanh toán"}
+                        ? "Thanh toán với MoMo"
+                        : "Xác nhận thanh toán"}
                   </button>
                 </div>
               </div>
