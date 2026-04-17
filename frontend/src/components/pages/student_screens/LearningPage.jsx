@@ -1,11 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  FiArrowLeft,
-  FiChevronDown,
-  FiChevronRight,
-  FiFileText,
-  FiHelpCircle,
-  FiPlayCircle,
+import {FiArrowLeft, FiChevronDown, FiFileText, FiHelpCircle, FiPlayCircle,
 } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
 import { courseService } from "../../../services/courseService";
