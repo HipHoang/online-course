@@ -6,6 +6,7 @@ from app.configs.settings import Config
 import os
 from flask_jwt_extended import JWTManager
 
+
 def create_app():
     app = Flask(__name__)
 
@@ -26,11 +27,13 @@ def create_app():
     from app.routes.auth_routes import auth_bp
     from app.routes.user_routes import user_bp
     from app.routes.course_routes import course_bp
+    from app.routes.lesson_routes import lesson_bp
     # ... Đăng ký thêm các route khác tương tự
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(user_bp, url_prefix='/api/users')
     app.register_blueprint(course_bp, url_prefix='/api/courses')
+    app.register_blueprint(lesson_bp, url_prefix='/api/lessons')
 
     @app.route('/')
     def index():

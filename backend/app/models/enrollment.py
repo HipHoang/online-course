@@ -6,8 +6,10 @@ class Enrollment(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
     course_id = db.Column(db.Integer, db.ForeignKey('courses.course_id'), nullable=False)
     status = db.Column(db.String(50), default='pending')
-    progress = db.Column(db.Float, default=0.0)
+    # progress = db.Column(db.Float, default=0.0)
     payments = db.relationship('Payment', backref='enrollment', lazy=True)
+
+    course = db.relationship('Course', backref='enrolled_users')
 
 class Payment(db.Model):
     __tablename__ = 'payments'
