@@ -1,9 +1,10 @@
 from flask import Blueprint, jsonify, request
-from app.services.course_service import CourseService, get_courses_service, get_course_detail_service
+from app.services.course_service import CourseService, get_courses_service, get_course_detail_service, get_course_user, enroll_course_service
 from app.utils.response import success_response, error_response
 from app.models.enrollment import Enrollment
 from app.models.course import Course
 from app.configs.db import db
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 # ✅ Khai báo 1 lần duy nhất
 course_bp = Blueprint('course_bp', __name__)
@@ -69,55 +70,29 @@ def get_course_detail(course_id):
 # GET MY COURSES
 # =========================
 @course_bp.route('/my-courses', methods=['GET'])
+@jwt_required()
 def get_my_courses():
-    user_id = request.args.get('user_id')
+    user_id = get_jwt_identity()
 
-    if not user_id:
-        return jsonify({"message": "Missing user_id"}), 400
+    data = get_course_user(user_id)
 
-    enrollments = Enrollment.query.filter_by(user_id=user_id).all()
+    return jsonify(data), 200
 
-    courses = []
-    for e in enrollments:
-        course = Course.query.get(e.course_id)
-        if course:
-            courses.append({
-                "id": course.course_id,
-                "title": course.title,
-                "description": course.description
-            })
-
-    return jsonify(courses), 200
 @course_bp.route('/enroll', methods=['POST'])
+@jwt_required()
 def enroll_course():
     try:
         data = request.get_json()
 
-        user_id = data.get('user_id')
+        user_id = get_jwt_identity()
         course_id = data.get('course_id')
 
         if not user_id or not course_id:
             return jsonify({"message": "Missing data"}), 400
 
-        # kiểm tra đã đăng ký chưa
-        existing = Enrollment.query.filter_by(
-            user_id=user_id,
-            course_id=course_id
-        ).first()
+        result, status = enroll_course_service(user_id, course_id)
 
-        if existing:
-            return jsonify({"message": "Already enrolled"}), 400
-
-        new_enroll = Enrollment(
-            user_id=user_id,
-            course_id=course_id,
-            status="active"
-        )
-
-        db.session.add(new_enroll)
-        db.session.commit()
-
-        return jsonify({"message": "Enroll success"}), 200
+        return jsonify(result), status
 
     except Exception as e:
         return jsonify({"message": str(e)}), 500
