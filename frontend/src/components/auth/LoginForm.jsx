@@ -46,7 +46,10 @@ const LoginForm = ({ onSwitchType }) => {
         password: form.password.trim(),
       });
 
-      localStorage.setItem("currentUser", JSON.stringify(data));
+      localStorage.clear(); // 💥 reset user cũ
+
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("currentUser", JSON.stringify(data.user));
 
       window.location.href = "/";
     } catch (error) {
@@ -85,11 +88,10 @@ const LoginForm = ({ onSwitchType }) => {
             placeholder="Email"
             value={form.email}
             onChange={handleChange}
-            className={`w-full rounded-full border px-5 py-3 outline-none transition ${
-              errors.email
+            className={`w-full rounded-full border px-5 py-3 outline-none transition ${errors.email
                 ? "border-red-400 bg-red-50 text-red-500 placeholder:text-red-300"
                 : "border-gray-200 bg-white focus:border-[#002B5B]"
-            }`}
+              }`}
           />
 
           {errors.email && (
@@ -104,11 +106,10 @@ const LoginForm = ({ onSwitchType }) => {
             placeholder="Mật khẩu"
             value={form.password}
             onChange={handleChange}
-            className={`w-full rounded-full border px-5 py-3 outline-none transition ${
-              errors.password
+            className={`w-full rounded-full border px-5 py-3 outline-none transition ${errors.password
                 ? "border-red-400 bg-red-50 text-red-500 placeholder:text-red-300"
                 : "border-gray-200 bg-white focus:border-[#002B5B]"
-            }`}
+              }`}
           />
 
           {errors.password && (

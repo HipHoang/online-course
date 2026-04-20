@@ -1,7 +1,9 @@
 # app/services/course_service.py
-from app.models import Course
-from sqlalchemy import asc, desc
+from calendar import c
 
+from app.models import Course, Enrollment, CourseProgress, Lesson
+from sqlalchemy import asc, desc
+from app.configs.db import db
 
 class CourseService:
     @staticmethod
@@ -96,3 +98,63 @@ def get_course_detail_service(course_id):
             for lesson in course.lessons
         ]
     }
+
+def get_course_user(user_id):
+    enrollments = Enrollment.query.filter_by(user_id=user_id).all()
+
+    result = []
+
+    for enroll in enrollments:
+        course = enroll.course
+
+        progress = CourseProgress.query.filter_by(
+            student_id=user_id,
+            course_id=course.course_id
+        ).first()
+
+        result.append({
+            "id": course.course_id,
+            "title": course.title,
+            "description": course.description,
+            "image": course.image,
+            "status": progress.status,
+
+            "progress_percent": progress.progress_percent if progress else 0,
+            "completed_lessons": progress.completed_lessons if progress else 0,
+            "total_lessons": progress.total_lessons if progress else 0,
+            "course_status": progress.status if progress else "not_started"
+        })
+
+    return result
+
+def enroll_course_service(user_id, course_id):
+    existing = Enrollment.query.filter_by(
+        user_id=user_id,
+        course_id=course_id
+    ).first()
+
+    if existing:
+        return {"error": "Already enrolled"}, 400
+
+    new_enroll = Enrollment(
+        user_id=user_id,
+        course_id=course_id,
+        status="active"
+    )
+    db.session.add(new_enroll)
+
+    total_lessons = Lesson.query.filter_by(course_id=course_id).count()
+
+    new_progress = CourseProgress(
+        student_id=user_id,
+        course_id=course_id,
+        total_lessons=total_lessons,
+        completed_lessons=0,
+        progress_percent=0,
+        status="not_started"
+    )
+    db.session.add(new_progress)
+
+    db.session.commit()
+
+    return {"message": "Enroll success"}, 200

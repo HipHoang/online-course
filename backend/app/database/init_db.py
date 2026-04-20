@@ -20,7 +20,7 @@ try:
     # Import đối tượng db từ configs
     from app.configs.db import db
     # Import TẤT CẢ models để SQLAlchemy biết các bảng cần tạo
-    from app.models import User, Course, Lesson, Enrollment, Payment, Quiz, Question, Answer, Post, Comment, Document
+    from app.models import User, Course, Lesson, Enrollment, Payment, Quiz, Question, Answer, Post, Comment, Document, CourseProgress, LessonProgress
 
     print("--- Đã tìm thấy các Model và cấu hình hệ thống ---")
 except ImportError as e:

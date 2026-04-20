@@ -7,6 +7,15 @@ const API = axios.create({
   },
 });
 
+// ✅ Gắn token tự động
+API.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export const loginApi = async (payload) => {
   const res = await API.post("/auth/login", payload);
   return res.data;
