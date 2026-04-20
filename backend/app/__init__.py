@@ -6,6 +6,9 @@ from app.configs.settings import Config
 import os
 from flask_jwt_extended import JWTManager
 
+from app.routes.post_routes import post_bp
+from app.routes.review_routes import review_bp
+
 
 def create_app():
     app = Flask(__name__)
@@ -34,6 +37,8 @@ def create_app():
     app.register_blueprint(user_bp, url_prefix='/api/users')
     app.register_blueprint(course_bp, url_prefix='/api/courses')
     app.register_blueprint(lesson_bp, url_prefix='/api/lessons')
+    app.register_blueprint(review_bp, url_prefix='/api/reviews')
+    app.register_blueprint(post_bp, url_prefix='/api/posts')
 
     @app.route('/')
     def index():
