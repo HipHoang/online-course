@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getAccessToken } from "../untils/auth";
 
 const API = axios.create({
   baseURL: "http://localhost:5000/api",
@@ -7,14 +8,18 @@ const API = axios.create({
   },
 });
 
-// ✅ Gắn token tự động
-API.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+API.interceptors.request.use(
+  (config) => {
+    const token = getAccessToken();
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 export const loginApi = async (payload) => {
   const res = await API.post("/auth/login", payload);

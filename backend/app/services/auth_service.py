@@ -7,13 +7,21 @@ def register_user(username, password, name, role):
     if User.query.filter_by(email=username).first():
         return jsonify({"message": "User đã tồn tại"}), 400
 
-    new_user = User(email=username, name=name, password=password, role=role)
+    new_user = User(email=username, name=name, role=role)
     new_user.set_password(password)
 
     db.session.add(new_user)
     db.session.commit()
 
-    return jsonify({"message": "Đăng ký thành công"}), 201
+    return jsonify({
+        "message": "Đăng ký thành công",
+        "user": {
+            "id": new_user.user_id,
+            "name": new_user.name,
+            "email": new_user.email,
+            "role": new_user.role
+        }
+    }), 201
 
 
 def login_user(username, password):
@@ -26,6 +34,7 @@ def login_user(username, password):
             "message": "Đăng nhập thành công",
             "access_token": access_token,
             "user": {
+                "id": user.user_id,
                 "name": user.name,
                 "email": user.email,
                 "role": user.role
