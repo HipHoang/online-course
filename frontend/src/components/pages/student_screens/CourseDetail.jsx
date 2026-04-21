@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   FiArrowLeft,
-  FiBookOpen,
   FiCheckCircle,
   FiChevronDown,
   FiClock,
@@ -17,6 +16,9 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 import { courseService } from "../../../services/courseService";
 import { enrollmentService } from "../../../services/enrollmentService";
+import { paymentService } from "../../../services/paymentService";
+import { reviewService } from "../../../services/reviewService";
+import { getCurrentUser } from "../../../untils/auth";
 
 const formatPrice = (price) => {
   if (!price || Number(price) === 0) return "Miễn phí";
@@ -43,6 +45,32 @@ const CourseDetail = () => {
     note: "",
   });
 
+  const [reviewForm, setReviewForm] = useState({
+    rating: 5,
+    comment: "",
+  });
+  const [reviews, setReviews] = useState([]);
+  const [reviewStats, setReviewStats] = useState({
+    average: 0,
+    total: 0,
+  });
+
+  const refreshReviewData = (courseId) => {
+    const courseReviews = reviewService.getCourseReviews(courseId);
+    const stats = reviewService.getCourseReviewStats(courseId);
+    const myReview = reviewService.getMyReview(courseId);
+
+    setReviews(courseReviews);
+    setReviewStats(stats);
+
+    if (myReview) {
+      setReviewForm({
+        rating: myReview.rating,
+        comment: myReview.comment || "",
+      });
+    }
+  };
+
   useEffect(() => {
     const fetchCourse = async () => {
       try {
@@ -55,6 +83,8 @@ const CourseDetail = () => {
           initialState[chapter.id] = index === 0;
         });
         setOpenChapters(initialState);
+
+        refreshReviewData(data.id);
       } catch (error) {
         console.error(error);
       } finally {
@@ -66,11 +96,11 @@ const CourseDetail = () => {
   }, [id]);
 
   useEffect(() => {
-    const currentUser = JSON.parse(localStorage.getItem("currentUser")) || {};
+    const currentUser = getCurrentUser();
     setPaymentForm((prev) => ({
       ...prev,
-      fullName: currentUser.fullName || "",
-      email: currentUser.email || "",
+      fullName: currentUser?.name || "",
+      email: currentUser?.email || "",
     }));
   }, []);
 
@@ -103,7 +133,7 @@ const CourseDetail = () => {
   };
 
   const handleEnrollCourse = () => {
-    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+    const currentUser = getCurrentUser();
 
     if (!currentUser) {
       handleRequireAuth("login", "Bạn cần đăng nhập để đăng ký khóa học này.");
@@ -129,63 +159,48 @@ const CourseDetail = () => {
       return;
     }
 
-    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-
-    if (!currentUser) {
-      alert("Bạn cần đăng nhập");
-      return;
-    }
-
     setIsProcessingPayment(true);
 
-try {
-  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
 
-  if (paymentMethod === "vnpay") {
-    const res = await fetch("http://127.0.0.1:5000/api/payment/checkout", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        user_id: currentUser.user_id,
-        course_id: course.id,
-        amount: course.price,
-      }),
-    });
+      paymentService.createPayment({
+        courseId: course.id,
+        courseTitle: course.title,
+        amount: Number(course.price || 0),
+        method: paymentMethod,
+        customerName: paymentForm.fullName,
+        phone: paymentForm.phone,
+        email: paymentForm.email,
+        note: paymentForm.note,
+      });
 
-    const data = await res.json();
+      enrollmentService.enrollCourse({
+        ...course,
+        paymentMethod,
+        paidAt: new Date().toISOString(),
+      });
 
-    if (!data.payment_url) {
-      throw new Error("Không lấy được link VNPay");
+      setIsEnrolled(true);
+      setShowPaymentModal(false);
+
+      alert(
+        paymentMethod === "momo"
+          ? "Thanh toán MoMo thành công! Bạn đã được đăng ký khóa học."
+          : "Thanh toán thành công! Bạn đã được đăng ký khóa học."
+      );
+
+      navigate(`/learn/${course.id}`);
+    } catch (error) {
+      console.error(error);
+      alert("Thanh toán thất bại. Vui lòng thử lại.");
+    } finally {
+      setIsProcessingPayment(false);
     }
-
-    window.location.href = data.payment_url;
-    return;
-  }
-
-  // 🟡 Mock cho MoMo / Card
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-
-  enrollmentService.enrollCourse({
-    ...course,
-    paymentMethod,
-    paidAt: new Date().toISOString(),
-  });
-
-  alert("Thanh toán thành công!");
-  navigate(`/learn/${course.id}`);
-
-} catch (error) {
-  console.error(error);
-  alert("Không thể tạo thanh toán");
-} finally {
-  setIsProcessingPayment(false);
-}
   };
 
   const handleLearnNow = () => {
-    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+    const currentUser = getCurrentUser();
 
     if (!currentUser) {
       handleRequireAuth("login", "Bạn cần đăng nhập để học khóa học này.");
@@ -203,6 +218,29 @@ try {
     }
 
     navigate(`/learn/${course.id}`);
+  };
+
+  const handleSubmitReview = () => {
+    const currentUser = getCurrentUser();
+
+    if (!currentUser) {
+      handleRequireAuth("login", "Bạn cần đăng nhập để đánh giá khóa học.");
+      return;
+    }
+
+    if (!isEnrolled) {
+      alert("Bạn cần đăng ký khóa học trước khi đánh giá.");
+      return;
+    }
+
+    try {
+      reviewService.addOrUpdateReview(course.id, reviewForm);
+      refreshReviewData(course.id);
+      alert("Đã lưu đánh giá của bạn!");
+    } catch (error) {
+      console.error(error);
+      alert("Không thể gửi đánh giá.");
+    }
   };
 
   if (loading) {
@@ -243,7 +281,10 @@ try {
                 </span>
                 <span className="flex items-center gap-1 text-sm text-orange-500 font-semibold">
                   <FiStar fill="currentColor" />
-                  {course.rating}
+                  {reviewStats.total > 0 ? reviewStats.average : course.rating}
+                </span>
+                <span className="text-sm text-slate-500">
+                  ({reviewStats.total} đánh giá)
                 </span>
               </div>
 
@@ -277,7 +318,16 @@ try {
                   </p>
                 </div>
 
-                <button className="text-blue-700 font-semibold hover:underline text-left md:text-right">
+                <button
+                  onClick={() => {
+                    const expanded = {};
+                    course.chapters?.forEach((chapter) => {
+                      expanded[chapter.id] = true;
+                    });
+                    setOpenChapters(expanded);
+                  }}
+                  className="text-blue-700 font-semibold hover:underline text-left md:text-right"
+                >
                   Mở rộng tất cả
                 </button>
               </div>
@@ -286,43 +336,51 @@ try {
                 {course.chapters?.map((chapter, chapterIndex) => (
                   <div
                     key={chapter.id}
-                    className="rounded-[22px] border border-gray-100 overflow-hidden"
+                    className="border border-gray-100 rounded-2xl overflow-hidden"
                   >
                     <button
                       onClick={() => toggleChapter(chapter.id)}
-                      className="w-full px-6 py-5 bg-[#F8FAFC] flex items-center justify-between text-left hover:bg-[#f1f5f9] transition"
+                      className="w-full px-5 py-4 bg-slate-50 hover:bg-slate-100 transition flex items-center justify-between"
                     >
-                      <div>
-                        <h3 className="font-bold text-lg text-[#0F172A]">
+                      <div className="text-left">
+                        <h3 className="font-bold text-lg text-slate-800">
                           {chapterIndex + 1}. {chapter.title}
                         </h3>
-                        <p className="text-sm text-slate-500 mt-1">
+                        <p className="text-sm text-slate-500">
                           {chapter.lessonsCount} bài học
                         </p>
                       </div>
-
                       <FiChevronDown
-                        className={`text-slate-500 transition-transform ${openChapters[chapter.id] ? "rotate-180" : ""
-                          }`}
+                        className={`transition-transform ${
+                          openChapters[chapter.id] ? "rotate-180" : ""
+                        }`}
                       />
                     </button>
 
                     {openChapters[chapter.id] && (
-                      <div className="divide-y divide-gray-100 bg-white">
+                      <div className="divide-y divide-gray-100">
                         {chapter.lessons?.map((lesson, lessonIndex) => (
                           <div
                             key={lesson.id}
-                            className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-blue-50/30 transition"
+                            className="px-5 py-4 flex items-center justify-between gap-4"
                           >
-                            <div className="flex items-center gap-3">
-                              <FiPlayCircle className="text-blue-600 text-lg" />
-                              <p className="text-slate-700">
-                                {chapterIndex + 1}.{lessonIndex + 1} {lesson.title}
-                              </p>
+                            <div className="flex items-start gap-3">
+                              <div className="mt-1 text-blue-600">
+                                <FiPlayCircle />
+                              </div>
+                              <div>
+                                <p className="font-medium text-slate-800">
+                                  {chapterIndex + 1}.{lessonIndex + 1} {lesson.title}
+                                </p>
+                                <p className="text-sm text-slate-500">
+                                  {lesson.duration}
+                                </p>
+                              </div>
                             </div>
-                            <span className="text-sm text-slate-500 whitespace-nowrap">
-                              {lesson.duration}
-                            </span>
+
+                            <div className="text-slate-400 text-sm">
+                              {isEnrolled ? <FiCheckCircle /> : <FiLock />}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -331,312 +389,309 @@ try {
                 ))}
               </div>
             </div>
+
+            <div className="bg-white rounded-[28px] border border-gray-100 p-8 shadow-sm">
+              <div className="flex items-center gap-2 mb-6">
+                <FiStar className="text-orange-500" />
+                <h2 className="text-2xl font-bold text-slate-800">
+                  Đánh giá khóa học
+                </h2>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-6">
+                <div className="rounded-3xl bg-slate-50 border border-gray-100 p-6">
+                  <div className="text-5xl font-bold text-slate-800 mb-2">
+                    {reviewStats.total > 0 ? reviewStats.average : "0.0"}
+                  </div>
+                  <div className="flex items-center gap-1 text-orange-500 mb-2">
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <FiStar key={index} fill="currentColor" />
+                    ))}
+                  </div>
+                  <p className="text-sm text-slate-500">
+                    {reviewStats.total} lượt đánh giá từ học viên
+                  </p>
+                </div>
+
+                <div className="rounded-3xl border border-gray-100 p-6">
+                  <h3 className="font-bold text-slate-800 mb-4">
+                    Đánh giá của bạn
+                  </h3>
+
+                  <div className="flex gap-2 mb-4 flex-wrap">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() =>
+                          setReviewForm((prev) => ({ ...prev, rating: star }))
+                        }
+                        className={`w-11 h-11 rounded-2xl border flex items-center justify-center ${
+                          reviewForm.rating >= star
+                            ? "bg-orange-50 border-orange-200 text-orange-500"
+                            : "bg-white border-gray-200 text-gray-400"
+                        }`}
+                      >
+                        <FiStar fill="currentColor" />
+                      </button>
+                    ))}
+                  </div>
+
+                  <textarea
+                    rows={4}
+                    value={reviewForm.comment}
+                    onChange={(e) =>
+                      setReviewForm((prev) => ({
+                        ...prev,
+                        comment: e.target.value,
+                      }))
+                    }
+                    placeholder="Nhập cảm nhận của bạn về khóa học..."
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-[#002B5B]"
+                  />
+
+                  <button
+                    onClick={handleSubmitReview}
+                    className="mt-4 px-5 py-3 rounded-2xl bg-[#002B5B] text-white font-semibold hover:opacity-90"
+                  >
+                    Gửi đánh giá
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-8 space-y-4">
+                {reviews.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-gray-200 p-5 text-slate-500">
+                    Chưa có đánh giá nào cho khóa học này.
+                  </div>
+                ) : (
+                  reviews.map((item) => (
+                    <div
+                      key={item.id}
+                      className="rounded-2xl border border-gray-100 p-5"
+                    >
+                      <div className="flex items-center justify-between gap-4 mb-2">
+                        <div className="flex items-center gap-2 text-slate-800 font-semibold">
+                          <FiUser />
+                          {item.userName}
+                        </div>
+                        <div className="flex items-center gap-1 text-orange-500">
+                          {Array.from({ length: item.rating }).map((_, index) => (
+                            <FiStar key={index} fill="currentColor" />
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-slate-600 leading-7">
+                        {item.comment || "Học viên chưa để lại nhận xét chi tiết."}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-6 sticky top-24">
-            <div className="bg-white rounded-[28px] border border-gray-100 p-5 shadow-sm">
-              <div className="relative rounded-[22px] overflow-hidden mb-8">
+          <div className="sticky top-6">
+            <div className="bg-white rounded-[28px] border border-gray-100 p-6 shadow-sm">
+              <div className="rounded-[22px] overflow-hidden mb-6">
                 <img
                   src={course.introVideoThumbnail || course.image}
                   alt={course.title}
-                  className="w-full h-55 object-cover"
+                  className="w-full h-56 object-cover"
                 />
-                <div className="absolute inset-0 bg-linear-to-t from-[#001E3C]/70 to-[#001E3C]/20"></div>
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-                  <div className="w-16 h-16 rounded-full bg-white text-blue-700 flex items-center justify-center shadow-lg mb-4">
-                    <FiPlayCircle size={30} />
-                  </div>
-                  <p className="font-bold text-lg">Xem giới thiệu khóa học</p>
-                </div>
               </div>
 
-              <div className="text-center mb-8">
-                <p className="text-4xl font-bold text-[#0B5CFF] mb-10">
+              <div className="flex items-end gap-3 mb-6">
+                <span className="text-4xl font-bold text-[#0F172A]">
                   {formatPrice(course.price)}
-                </p>
-
-                {isEnrolled ? (
-                  <button
-                    onClick={handleLearnNow}
-                    className="mt-4 w-full bg-[#0B5CFF] hover:bg-[#0047d9] text-white py-3.5 rounded-full font-bold text-lg shadow-md transition"
-                  >
-                    Học ngay
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleEnrollCourse}
-                    className="mt-4 w-full bg-[#0B5CFF] hover:bg-[#0047d9] text-white py-3.5 rounded-full font-bold text-lg shadow-md transition"
-                  >
-                    {isFreeCourse ? "Đăng ký học" : "Thanh toán & đăng ký"}
-                  </button>
-                )}
+                </span>
               </div>
 
-              <div className="space-y-4 text-slate-700">
-                <div className="flex items-center gap-3">
-                  <FiUser className="text-blue-700" />
-                  <span>Giảng viên: {course.instructor}</span>
-                </div>
+              <div className="space-y-3 mb-6">
+                <button
+                  onClick={handleEnrollCourse}
+                  className="w-full rounded-2xl bg-[#002B5B] text-white py-3.5 font-semibold hover:opacity-90 transition"
+                >
+                  {isEnrolled ? "Tiếp tục học" : isFreeCourse ? "Đăng ký học" : "Thanh toán & đăng ký"}
+                </button>
 
+                <button
+                  onClick={handleLearnNow}
+                  className="w-full rounded-2xl border border-gray-200 py-3.5 font-semibold text-slate-700 hover:bg-gray-50 transition"
+                >
+                  Học ngay
+                </button>
+              </div>
+
+              <div className="space-y-4 text-sm text-slate-600">
                 <div className="flex items-center gap-3">
-                  <FiBookOpen className="text-blue-700" />
+                  <FiClock />
+                  <span>Thời lượng: {course.totalDuration}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <FiPlayCircle />
                   <span>{course.totalLessons} bài học</span>
                 </div>
-
                 <div className="flex items-center gap-3">
-                  <FiClock className="text-blue-700" />
-                  <span>Thời lượng {course.totalDuration}</span>
+                  <FiMonitor />
+                  <span>Học trên máy tính</span>
                 </div>
-
                 <div className="flex items-center gap-3">
-                  <FiMonitor className="text-blue-700" />
-                  <span>Học mọi lúc, mọi nơi</span>
+                  <FiSmartphone />
+                  <span>Học trên điện thoại</span>
                 </div>
-
                 <div className="flex items-center gap-3">
-                  <FiStar className="text-blue-700" />
-                  <span>Trình độ {course.level}</span>
+                  <FiCheckCircle />
+                  <span>Truy cập trọn đời</span>
                 </div>
               </div>
-            </div>
-
-            <div className="bg-linear-to-r from-[#032a6b] to-[#0B5CFF] rounded-[28px] p-6 text-white shadow-lg">
-              <h3 className="text-xl font-bold mb-3">Sẵn sàng học chưa?</h3>
-              <p className="text-blue-100 leading-7 mb-5">
-                Bắt đầu ngay hôm nay để nâng cao kiến thức và kỹ năng cùng OU
-                Education.
-              </p>
-              <button
-                onClick={handleLearnNow}
-                className="w-full bg-white text-blue-700 py-3 rounded-full font-bold hover:bg-blue-50 transition"
-              >
-                {isEnrolled ? "Học ngay" : isFreeCourse ? "Đăng ký miễn phí" : "Thanh toán ngay"}
-              </button>
             </div>
           </div>
         </div>
       </div>
 
       {showPaymentModal && (
-        <div className="fixed inset-0 z-100 bg-black/50 backdrop-blur-[2px] flex items-center justify-center p-4">
-          <div className="w-full max-w-5xl max-h-[90vh] bg-white rounded-4xl shadow-2xl overflow-hidden flex flex-col lg:flex-row">
-            <div className="lg:w-[42%] bg-linear-to-b from-[#032a6b] to-[#0B5CFF] text-white p-8 lg:p-10 relative">
-              <button
-                onClick={() => !isProcessingPayment && setShowPaymentModal(false)}
-                className="absolute top-5 right-5 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
-              >
-                <FiX size={20} />
-              </button>
-
-              <div className="max-w-sm">
-                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 text-sm font-medium mb-5">
-                  <FiLock size={14} />
-                  Thanh toán an toàn
-                </span>
-
-                <h3 className="text-3xl font-bold leading-tight mb-3">
-                  Hoàn tất thanh toán
-                  <br />
-                  để bắt đầu học ngay
+        <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center px-4">
+          <div className="w-full max-w-2xl bg-white rounded-[30px] border border-gray-100 shadow-2xl overflow-hidden">
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-bold text-slate-800">
+                  Thanh toán khóa học
                 </h3>
-
-                <p className="text-blue-100 leading-7 mb-8">
-                  Sau khi thanh toán thành công, hệ thống sẽ tự động mở quyền truy cập khóa học.
+                <p className="text-sm text-slate-500 mt-1">
+                  Hoàn tất thông tin để đăng ký khóa học
                 </p>
-
-                <div className="rounded-3xl bg-white/10 border border-white/10 p-5 mb-6">
-                  <p className="text-sm text-blue-100 mb-2">Khóa học</p>
-                  <h4 className="text-xl font-bold mb-2">{course.title}</h4>
-                  <p className="text-sm text-blue-100">Giảng viên: {course.instructor}</p>
-
-                  <div className="mt-5 pt-5 border-t border-white/10">
-                    <p className="text-sm text-blue-100 mb-1">Tổng thanh toán</p>
-                    <p className="text-4xl font-bold">{formatPrice(course.price)}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 text-sm text-blue-100">
-                  <FiCheckCircle className="text-white" />
-                  Thanh toán thành công mới được vào học
-                </div>
               </div>
+              <button
+                onClick={() => setShowPaymentModal(false)}
+                className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-slate-500 hover:bg-gray-50"
+              >
+                <FiX />
+              </button>
             </div>
 
-            <div className="flex-1 p-6 md:p-8 lg:p-10 overflow-y-auto max-h-[90vh]">
-              <div className="max-w-xl mx-auto">
-                <h3 className="text-2xl font-bold text-slate-800 mb-2">Thông tin thanh toán</h3>
-                <p className="text-slate-500 mb-6">
-                  Vui lòng điền thông tin và chọn phương thức thanh toán phù hợp.
-                </p>
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.95fr] gap-0">
+              <div className="p-6 border-r border-gray-100">
+                <h4 className="font-bold text-slate-800 mb-4">Thông tin học viên</h4>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">
-                      Họ và tên
-                    </label>
-                    <input
-                      type="text"
-                      value={paymentForm.fullName}
-                      onChange={(e) =>
-                        setPaymentForm((prev) => ({ ...prev, fullName: e.target.value }))
-                      }
-                      placeholder="Nhập họ và tên"
-                      className="w-full px-4 py-3 rounded-2xl border border-gray-200 outline-none focus:ring-2 focus:ring-[#0B5CFF] focus:border-transparent"
-                    />
-                  </div>
+                <div className="space-y-4">
+                  <input
+                    type="text"
+                    placeholder="Họ và tên"
+                    value={paymentForm.fullName}
+                    onChange={(e) =>
+                      setPaymentForm((prev) => ({
+                        ...prev,
+                        fullName: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-[#002B5B]"
+                  />
 
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">
-                      Số điện thoại
-                    </label>
-                    <input
-                      type="text"
-                      value={paymentForm.phone}
-                      onChange={(e) =>
-                        setPaymentForm((prev) => ({ ...prev, phone: e.target.value }))
-                      }
-                      placeholder="Nhập số điện thoại"
-                      className="w-full px-4 py-3 rounded-2xl border border-gray-200 outline-none focus:ring-2 focus:ring-[#0B5CFF] focus:border-transparent"
-                    />
-                  </div>
+                  <input
+                    type="text"
+                    placeholder="Số điện thoại"
+                    value={paymentForm.phone}
+                    onChange={(e) =>
+                      setPaymentForm((prev) => ({
+                        ...prev,
+                        phone: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-[#002B5B]"
+                  />
 
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      value={paymentForm.email}
-                      onChange={(e) =>
-                        setPaymentForm((prev) => ({ ...prev, email: e.target.value }))
-                      }
-                      placeholder="Nhập email"
-                      className="w-full px-4 py-3 rounded-2xl border border-gray-200 outline-none focus:ring-2 focus:ring-[#0B5CFF] focus:border-transparent"
-                    />
-                  </div>
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={paymentForm.email}
+                    onChange={(e) =>
+                      setPaymentForm((prev) => ({
+                        ...prev,
+                        email: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-[#002B5B]"
+                  />
 
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">
-                      Ghi chú
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={paymentForm.note}
-                      onChange={(e) =>
-                        setPaymentForm((prev) => ({ ...prev, note: e.target.value }))
-                      }
-                      placeholder="Nhập ghi chú nếu có"
-                      className="w-full px-4 py-3 rounded-2xl border border-gray-200 outline-none focus:ring-2 focus:ring-[#0B5CFF] focus:border-transparent resize-none"
-                    />
-                  </div>
+                  <textarea
+                    rows={3}
+                    placeholder="Ghi chú (không bắt buộc)"
+                    value={paymentForm.note}
+                    onChange={(e) =>
+                      setPaymentForm((prev) => ({
+                        ...prev,
+                        note: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-[#002B5B]"
+                  />
                 </div>
+              </div>
 
-                <div className="mb-7">
-                  <p className="text-sm font-semibold text-slate-700 mb-7">
-                    Chọn phương thức thanh toán
+              <div className="p-6 bg-slate-50">
+                <div className="rounded-3xl bg-white border border-gray-100 p-5 mb-5">
+                  <h4 className="font-bold text-slate-800 mb-3">
+                    Thông tin đơn hàng
+                  </h4>
+                  <p className="text-slate-700 font-semibold leading-7">
+                    {course.title}
                   </p>
-
-                  <div className="space-y-3">
-                    <label
-                      className={`flex items-center gap-4 p-4 mt-4 rounded-2xl border cursor-pointer transition ${paymentMethod === "momo"
-                        ? "border-pink-500 bg-pink-50"
-                        : "border-gray-200 hover:bg-gray-50"
-                        }`}
-                    >
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        checked={paymentMethod === "momo"}
-                        onChange={() => setPaymentMethod("momo")}
-                      />
-                      <div className="w-11 h-11 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center">
-                        <FiSmartphone size={20} />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-slate-800">Ví MoMo</p>
-                        <p className="text-sm text-slate-500">
-                          Phương thức chính được ưu tiên cho thanh toán khóa học.
-                        </p>
-                      </div>
-                      <span className="text-xs font-bold text-pink-600 bg-pink-100 px-2.5 py-1 rounded-full">
-                        Khuyên dùng
-                      </span>
-                    </label>
-
-                    <label
-                      className={`flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition ${paymentMethod === "vnpay"
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200 hover:bg-gray-50"
-                        }`}
-                    >
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        checked={paymentMethod === "vnpay"}
-                        onChange={() => setPaymentMethod("vnpay")}
-                      />
-                      <div className="w-11 h-11 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
-                        <FiCreditCard size={20} />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-800">VNPay</p>
-                        <p className="text-sm text-slate-500">
-                          Thanh toán qua cổng VNPay (ATM, QR, Internet Banking).
-                        </p>
-                      </div>
-                    </label>
-
-                    <label
-                      className={`flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition ${paymentMethod === "card"
-                        ? "border-violet-500 bg-violet-50"
-                        : "border-gray-200 hover:bg-gray-50"
-                        }`}
-                    >
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        checked={paymentMethod === "card"}
-                        onChange={() => setPaymentMethod("card")}
-                      />
-                      <div className="w-11 h-11 rounded-xl bg-violet-100 text-violet-600 flex items-center justify-center">
-                        <FiCreditCard size={20} />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-800">Thẻ ngân hàng</p>
-                        <p className="text-sm text-slate-500">
-                          Mô phỏng thanh toán bằng thẻ nội địa hoặc quốc tế.
-                        </p>
-                      </div>
-                    </label>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Giảng viên: {course.instructor}
+                  </p>
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-slate-500">Tổng thanh toán</span>
+                    <span className="text-2xl font-bold text-[#002B5B]">
+                      {formatPrice(course.price)}
+                    </span>
                   </div>
                 </div>
 
-                {/* <div className="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-600 mb-6">
-                  Sau khi bấm thanh toán, hệ thống sẽ giả lập giao dịch thành công và mở
-                  quyền học khóa này cho tài khoản của bạn.
-                </div> */}
-
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="space-y-3 mb-6">
                   <button
-                    onClick={() => setShowPaymentModal(false)}
-                    disabled={isProcessingPayment}
-                    className="flex-1 py-3 rounded-full border border-gray-200 font-semibold text-slate-700 hover:bg-gray-50 disabled:opacity-60"
+                    onClick={() => setPaymentMethod("momo")}
+                    className={`w-full rounded-2xl border px-4 py-3 flex items-center gap-3 text-left ${
+                      paymentMethod === "momo"
+                        ? "border-[#002B5B] bg-blue-50"
+                        : "border-gray-200 bg-white"
+                    }`}
                   >
-                    Hủy
+                    <FiCreditCard className="text-[#002B5B]" />
+                    <div>
+                      <div className="font-semibold text-slate-800">Ví MoMo</div>
+                      <div className="text-sm text-slate-500">
+                        Phương thức đề xuất
+                      </div>
+                    </div>
                   </button>
 
                   <button
-                    onClick={handleConfirmPayment}
-                    disabled={isProcessingPayment}
-                    className="flex-1 py-3 rounded-full bg-[#0B5CFF] text-white font-semibold hover:bg-blue-700 disabled:opacity-70 shadow-md"
+                    onClick={() => setPaymentMethod("banking")}
+                    className={`w-full rounded-2xl border px-4 py-3 flex items-center gap-3 text-left ${
+                      paymentMethod === "banking"
+                        ? "border-[#002B5B] bg-blue-50"
+                        : "border-gray-200 bg-white"
+                    }`}
                   >
-                    {isProcessingPayment
-                      ? "Đang xử lý thanh toán..."
-                      : paymentMethod === "momo"
-                        ? "Thanh toán với MoMo"
-                        : "Xác nhận thanh toán"}
+                    <FiCreditCard className="text-[#002B5B]" />
+                    <div>
+                      <div className="font-semibold text-slate-800">
+                        Chuyển khoản ngân hàng
+                      </div>
+                      <div className="text-sm text-slate-500">
+                        Giả lập thanh toán thành công
+                      </div>
+                    </div>
                   </button>
                 </div>
+
+                <button
+                  onClick={handleConfirmPayment}
+                  disabled={isProcessingPayment}
+                  className="w-full rounded-2xl bg-[#002B5B] text-white py-3.5 font-semibold hover:opacity-90 transition disabled:opacity-60"
+                >
+                  {isProcessingPayment ? "Đang xử lý..." : "Xác nhận thanh toán"}
+                </button>
               </div>
             </div>
           </div>

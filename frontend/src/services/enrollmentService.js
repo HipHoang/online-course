@@ -1,9 +1,6 @@
-const ENROLLMENTS_KEY = "userEnrollments";
+import { getCurrentUser } from "../untils/auth";
 
-const getCurrentUser = () => {
-  const user = localStorage.getItem("currentUser");
-  return user ? JSON.parse(user) : null;
-};
+const ENROLLMENTS_KEY = "userEnrollments";
 
 const getAllEnrollments = () => {
   const data = localStorage.getItem(ENROLLMENTS_KEY);
@@ -14,83 +11,77 @@ const saveAllEnrollments = (data) => {
   localStorage.setItem(ENROLLMENTS_KEY, JSON.stringify(data));
 };
 
+const getCurrentUserId = () => {
+  const user = getCurrentUser();
+  return user?.id || null;
+};
+
 export const enrollmentService = {
   getMyCourses() {
-    const currentUser = getCurrentUser();
-    if (!currentUser) return [];
+    const userId = getCurrentUserId();
+    if (!userId) return [];
 
     const all = getAllEnrollments();
-    return all[currentUser.user_id] || [];
+    return all[userId] || [];
   },
 
   isEnrolled(courseId) {
-    const currentUser = getCurrentUser();
-    if (!currentUser) return false;
-
-    const all = getAllEnrollments();
-    const myCourses = all[currentUser.user_id] || [];
-    return myCourses.some((item) => item.courseId === Number(courseId));
+    const myCourses = this.getMyCourses();
+    return myCourses.some((item) => Number(item.courseId) === Number(courseId));
   },
 
   enrollCourse(course) {
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
-      throw new Error("USER_NOT_LOGGED_IN");
-    }
+    const userId = getCurrentUserId();
+    if (!userId) throw new Error("USER_NOT_LOGGED_IN");
 
     const all = getAllEnrollments();
-    const myCourses = all[currentUser.user_id] || [];
+    const myCourses = all[userId] || [];
 
-    const existed = myCourses.find((item) => item.courseId === course.id);
-    if (existed) return existed;
+    const existed = myCourses.some(
+      (item) => Number(item.courseId) === Number(course.id)
+    );
 
-    const enrolledCourse = {
-      courseId: course.id,
+    if (existed) return;
+
+    const newEnrollment = {
+      courseId: Number(course.id),
       title: course.title,
-      category: course.category,
-      instructor: course.instructor,
-      image: course.image,
-      shortDescription: course.shortDescription,
-      totalLessons: course.totalLessons,
-      completedLessons: 0,
+      image: course.image || "",
+      instructor: course.instructor || "",
       progress: 0,
-      currentLessonId: course.chapters?.[0]?.lessons?.[0]?.id || 1,
+      completedLessons: 0,
+      currentLessonId: course.chapters?.[0]?.lessons?.[0]?.id || null,
       enrolledAt: new Date().toISOString(),
-      status: "Đang học",
+      status: "learning",
+      paymentMethod: course.paymentMethod || null,
+      paidAt: course.paidAt || null,
     };
 
-    all[currentUser.user_id] = [...myCourses, enrolledCourse];
+    all[userId] = [newEnrollment, ...myCourses];
     saveAllEnrollments(all);
-
-    return enrolledCourse;
   },
 
   updateLessonProgress(courseId, lessonId, completedLessons) {
-    const currentUser = getCurrentUser();
-    if (!currentUser) return;
+    const userId = getCurrentUserId();
+    if (!userId) throw new Error("USER_NOT_LOGGED_IN");
 
     const all = getAllEnrollments();
-    const myCourses = all[currentUser.user_id] || [];
+    const myCourses = all[userId] || [];
 
-    const updated = myCourses.map((item) => {
-      if (item.courseId !== Number(courseId)) return item;
+    all[userId] = myCourses.map((item) => {
+      if (Number(item.courseId) !== Number(courseId)) return item;
 
-      const total = item.totalLessons || 1;
-      const progress = Math.min(
-        100,
-        Math.round((completedLessons / total) * 100)
-      );
+      const progress = Math.min(100, completedLessons * 10);
 
       return {
         ...item,
         currentLessonId: lessonId,
         completedLessons,
         progress,
-        status: progress === 100 ? "Hoàn thành" : "Đang học",
+        status: progress >= 100 ? "completed" : "learning",
       };
     });
 
-    all[currentUser.user_id] = updated;
     saveAllEnrollments(all);
   },
 };

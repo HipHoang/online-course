@@ -15,13 +15,21 @@ def register_user(username, password, name, role):
             return None, "Email đã đăng ký bằng tài khoản thường"
         return jsonify({"message": "User đã tồn tại"}), 400
 
-    new_user = User(email=username, name=name, password=password, role=role, provider="local")
+    new_user = User(email=username, name=name, role=role)
     new_user.set_password(password)
 
     db.session.add(new_user)
     db.session.commit()
 
-    return jsonify({"message": "Đăng ký thành công"}), 201
+    return jsonify({
+        "message": "Đăng ký thành công",
+        "user": {
+            "id": new_user.user_id,
+            "name": new_user.name,
+            "email": new_user.email,
+            "role": new_user.role
+        }
+    }), 201
 
 
 def login_user(username, password):
