@@ -1,5 +1,7 @@
 from flask import Blueprint, request
-from app.services.auth_service import register_user, login_user
+from app.services.auth_service import register_user, login_user, verify_google_token
+from app.utils.response import error_response, success_response
+from flask_jwt_extended import create_access_token
 
 auth_bp = Blueprint('auth_bp', __name__)
 
@@ -93,3 +95,27 @@ def login():
 
     except Exception as e:
         return {"message": str(e)}, 500
+
+@auth_bp.route("/google", methods=["POST"])
+def login_google():
+    data = request.get_json()
+    token = data.get("token")
+
+    if not token:
+        return error_response("Missing token", 400)
+
+    user, error = verify_google_token(token)
+
+    if error:
+        return error_response(error, 401)
+
+    access_token = create_access_token(identity=str(user.user_id))
+
+    return success_response({
+        "access_token": access_token,
+        "user": {
+            "id": user.user_id,
+            "name": user.name,
+            "email": user.email
+        }
+    }, "Login Google thành công")

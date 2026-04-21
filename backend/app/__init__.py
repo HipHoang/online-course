@@ -31,6 +31,8 @@ def create_app():
     app.register_blueprint(course_bp, url_prefix='/api/courses')
     app.register_blueprint(lesson_bp, url_prefix='/api/lessons')
     app.register_blueprint(payment_bp, url_prefix='/api/payments')
+    app.register_blueprint(review_bp, url_prefix='/api/reviews')
+    app.register_blueprint(post_bp, url_prefix='/api/posts')
 
     @app.route('/')
     def index():
