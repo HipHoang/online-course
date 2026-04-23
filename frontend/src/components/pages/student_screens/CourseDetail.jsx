@@ -4,21 +4,20 @@ import {
   FiCheckCircle,
   FiChevronDown,
   FiClock,
-  FiCreditCard,
   FiLock,
   FiMonitor,
   FiPlayCircle,
   FiSmartphone,
   FiStar,
   FiUser,
-  FiX,
 } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
 import { courseService } from "../../../services/courseService";
 import { enrollmentService } from "../../../services/enrollmentService";
-import { paymentService } from "../../../services/paymentService";
 import { reviewService } from "../../../services/reviewService";
-import { getCurrentUser } from "../../../untils/auth";
+import API from "../../../services/authService";
+import CheckoutModal from "../../checkout/CheckoutModal";
+import { getAccessToken, getCurrentUser } from "../../../untils/auth";
 
 const formatPrice = (price) => {
   if (!price || Number(price) === 0) return "Miễn phí";
@@ -34,16 +33,7 @@ const CourseDetail = () => {
   const [openChapters, setOpenChapters] = useState({});
   const [isEnrolled, setIsEnrolled] = useState(false);
 
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("momo");
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-
-  const [paymentForm, setPaymentForm] = useState({
-    fullName: "",
-    phone: "",
-    email: "",
-    note: "",
-  });
+  const [showCheckout, setShowCheckout] = useState(false);
 
   const [reviewForm, setReviewForm] = useState({
     rating: 5,
@@ -76,7 +66,20 @@ const CourseDetail = () => {
       try {
         const data = await courseService.getCourseById(id);
         setCourse(data);
-        setIsEnrolled(enrollmentService.isEnrolled(id));
+
+        let enrolled = enrollmentService.isEnrolled(id);
+        if (getAccessToken()) {
+          try {
+            const res = await API.get("/courses/my-courses");
+            const list = Array.isArray(res.data) ? res.data : [];
+            enrolled =
+              enrolled ||
+              list.some((c) => Number(c.id) === Number(data.id));
+          } catch {
+            /* giữ trạng thái local */
+          }
+        }
+        setIsEnrolled(enrolled);
 
         const initialState = {};
         data.chapters?.forEach((chapter, index) => {
@@ -95,15 +98,6 @@ const CourseDetail = () => {
     fetchCourse();
   }, [id]);
 
-  useEffect(() => {
-    const currentUser = getCurrentUser();
-    setPaymentForm((prev) => ({
-      ...prev,
-      fullName: currentUser?.name || "",
-      email: currentUser?.email || "",
-    }));
-  }, []);
-
   const isFreeCourse = useMemo(() => Number(course?.price || 0) === 0, [course]);
 
   const toggleChapter = (chapterId) => {
@@ -121,18 +115,31 @@ const CourseDetail = () => {
     );
   };
 
-  const enrollFreeCourse = () => {
+  const enrollFreeCourse = async () => {
     try {
-      enrollmentService.enrollCourse(course);
+      if (getAccessToken()) {
+        try {
+          await API.post("/courses/enroll", { course_id: course.id });
+        } catch (err) {
+          if (err.response?.status !== 400) throw err;
+        }
+      }
+      await enrollmentService.enrollCourse(course.id);
+      const updatedCourses = await enrollmentService.getMyCourses();
+      setMyCourses(updatedCourses);
       setIsEnrolled(true);
       alert("Đăng ký khóa học thành công!");
     } catch (error) {
       console.error(error);
-      alert("Có lỗi xảy ra khi đăng ký khóa học.");
+      alert(
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        "Có lỗi xảy ra khi đăng ký khóa học."
+      );
     }
   };
 
-  const handleEnrollCourse = () => {
+  const handleEnrollCourse = async () => {
     const currentUser = getCurrentUser();
 
     if (!currentUser) {
@@ -146,60 +153,24 @@ const CourseDetail = () => {
     }
 
     if (isFreeCourse) {
-      enrollFreeCourse();
+      await enrollFreeCourse();
       return;
     }
 
-    setShowPaymentModal(true);
+    setShowCheckout(true);
   };
 
-  const handleConfirmPayment = async () => {
-    if (!paymentForm.fullName.trim() || !paymentForm.phone.trim() || !paymentForm.email.trim()) {
-      alert("Vui lòng nhập đầy đủ họ tên, số điện thoại và email.");
-      return;
-    }
-
-    setIsProcessingPayment(true);
-
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-
-      paymentService.createPayment({
-        courseId: course.id,
-        courseTitle: course.title,
-        amount: Number(course.price || 0),
-        method: paymentMethod,
-        customerName: paymentForm.fullName,
-        phone: paymentForm.phone,
-        email: paymentForm.email,
-        note: paymentForm.note,
-      });
-
-      enrollmentService.enrollCourse({
-        ...course,
-        paymentMethod,
-        paidAt: new Date().toISOString(),
-      });
-
-      setIsEnrolled(true);
-      setShowPaymentModal(false);
-
-      alert(
-        paymentMethod === "momo"
-          ? "Thanh toán MoMo thành công! Bạn đã được đăng ký khóa học."
-          : "Thanh toán thành công! Bạn đã được đăng ký khóa học."
-      );
-
-      navigate(`/learn/${course.id}`);
-    } catch (error) {
-      console.error(error);
-      alert("Thanh toán thất bại. Vui lòng thử lại.");
-    } finally {
-      setIsProcessingPayment(false);
-    }
+  const handleCheckoutSuccess = () => {
+    enrollmentService.enrollCourse({
+      ...course,
+      paidAt: new Date().toISOString(),
+    });
+    setIsEnrolled(true);
+    alert("Thanh toán thành công! Khóa học đã được thêm vào danh sách của bạn.");
+    navigate(`/learn/${course.id}`);
   };
 
-  const handleLearnNow = () => {
+  const handleLearnNow = async () => {
     const currentUser = getCurrentUser();
 
     if (!currentUser) {
@@ -209,10 +180,10 @@ const CourseDetail = () => {
 
     if (!isEnrolled) {
       if (isFreeCourse) {
-        enrollFreeCourse();
+        await enrollFreeCourse();
         navigate(`/learn/${course.id}`);
       } else {
-        setShowPaymentModal(true);
+        setShowCheckout(true);
       }
       return;
     }
@@ -351,9 +322,8 @@ const CourseDetail = () => {
                         </p>
                       </div>
                       <FiChevronDown
-                        className={`transition-transform ${
-                          openChapters[chapter.id] ? "rotate-180" : ""
-                        }`}
+                        className={`transition-transform ${openChapters[chapter.id] ? "rotate-180" : ""
+                          }`}
                       />
                     </button>
 
@@ -425,11 +395,10 @@ const CourseDetail = () => {
                         onClick={() =>
                           setReviewForm((prev) => ({ ...prev, rating: star }))
                         }
-                        className={`w-11 h-11 rounded-2xl border flex items-center justify-center ${
-                          reviewForm.rating >= star
+                        className={`w-11 h-11 rounded-2xl border flex items-center justify-center ${reviewForm.rating >= star
                             ? "bg-orange-50 border-orange-200 text-orange-500"
                             : "bg-white border-gray-200 text-gray-400"
-                        }`}
+                          }`}
                       >
                         <FiStar fill="currentColor" />
                       </button>
@@ -511,14 +480,18 @@ const CourseDetail = () => {
                   onClick={handleEnrollCourse}
                   className="w-full rounded-2xl bg-[#002B5B] text-white py-3.5 font-semibold hover:opacity-90 transition"
                 >
-                  {isEnrolled ? "Tiếp tục học" : isFreeCourse ? "Đăng ký học" : "Thanh toán & đăng ký"}
+                  {isEnrolled
+                    ? "Vào học"
+                    : isFreeCourse
+                      ? "Đăng ký học"
+                      : "Mua khóa học"}
                 </button>
 
                 <button
                   onClick={handleLearnNow}
                   className="w-full rounded-2xl border border-gray-200 py-3.5 font-semibold text-slate-700 hover:bg-gray-50 transition"
                 >
-                  Học ngay
+                  {isEnrolled ? "Vào học" : "Học ngay"}
                 </button>
               </div>
 
@@ -549,154 +522,12 @@ const CourseDetail = () => {
         </div>
       </div>
 
-      {showPaymentModal && (
-        <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center px-4">
-          <div className="w-full max-w-2xl bg-white rounded-[30px] border border-gray-100 shadow-2xl overflow-hidden">
-            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-2xl font-bold text-slate-800">
-                  Thanh toán khóa học
-                </h3>
-                <p className="text-sm text-slate-500 mt-1">
-                  Hoàn tất thông tin để đăng ký khóa học
-                </p>
-              </div>
-              <button
-                onClick={() => setShowPaymentModal(false)}
-                className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-slate-500 hover:bg-gray-50"
-              >
-                <FiX />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.95fr] gap-0">
-              <div className="p-6 border-r border-gray-100">
-                <h4 className="font-bold text-slate-800 mb-4">Thông tin học viên</h4>
-
-                <div className="space-y-4">
-                  <input
-                    type="text"
-                    placeholder="Họ và tên"
-                    value={paymentForm.fullName}
-                    onChange={(e) =>
-                      setPaymentForm((prev) => ({
-                        ...prev,
-                        fullName: e.target.value,
-                      }))
-                    }
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-[#002B5B]"
-                  />
-
-                  <input
-                    type="text"
-                    placeholder="Số điện thoại"
-                    value={paymentForm.phone}
-                    onChange={(e) =>
-                      setPaymentForm((prev) => ({
-                        ...prev,
-                        phone: e.target.value,
-                      }))
-                    }
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-[#002B5B]"
-                  />
-
-                  <input
-                    type="email"
-                    placeholder="Email"
-                    value={paymentForm.email}
-                    onChange={(e) =>
-                      setPaymentForm((prev) => ({
-                        ...prev,
-                        email: e.target.value,
-                      }))
-                    }
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-[#002B5B]"
-                  />
-
-                  <textarea
-                    rows={3}
-                    placeholder="Ghi chú (không bắt buộc)"
-                    value={paymentForm.note}
-                    onChange={(e) =>
-                      setPaymentForm((prev) => ({
-                        ...prev,
-                        note: e.target.value,
-                      }))
-                    }
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-[#002B5B]"
-                  />
-                </div>
-              </div>
-
-              <div className="p-6 bg-slate-50">
-                <div className="rounded-3xl bg-white border border-gray-100 p-5 mb-5">
-                  <h4 className="font-bold text-slate-800 mb-3">
-                    Thông tin đơn hàng
-                  </h4>
-                  <p className="text-slate-700 font-semibold leading-7">
-                    {course.title}
-                  </p>
-                  <p className="text-sm text-slate-500 mt-1">
-                    Giảng viên: {course.instructor}
-                  </p>
-                  <div className="mt-4 flex items-center justify-between">
-                    <span className="text-slate-500">Tổng thanh toán</span>
-                    <span className="text-2xl font-bold text-[#002B5B]">
-                      {formatPrice(course.price)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="space-y-3 mb-6">
-                  <button
-                    onClick={() => setPaymentMethod("momo")}
-                    className={`w-full rounded-2xl border px-4 py-3 flex items-center gap-3 text-left ${
-                      paymentMethod === "momo"
-                        ? "border-[#002B5B] bg-blue-50"
-                        : "border-gray-200 bg-white"
-                    }`}
-                  >
-                    <FiCreditCard className="text-[#002B5B]" />
-                    <div>
-                      <div className="font-semibold text-slate-800">Ví MoMo</div>
-                      <div className="text-sm text-slate-500">
-                        Phương thức đề xuất
-                      </div>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => setPaymentMethod("banking")}
-                    className={`w-full rounded-2xl border px-4 py-3 flex items-center gap-3 text-left ${
-                      paymentMethod === "banking"
-                        ? "border-[#002B5B] bg-blue-50"
-                        : "border-gray-200 bg-white"
-                    }`}
-                  >
-                    <FiCreditCard className="text-[#002B5B]" />
-                    <div>
-                      <div className="font-semibold text-slate-800">
-                        Chuyển khoản ngân hàng
-                      </div>
-                      <div className="text-sm text-slate-500">
-                        Giả lập thanh toán thành công
-                      </div>
-                    </div>
-                  </button>
-                </div>
-
-                <button
-                  onClick={handleConfirmPayment}
-                  disabled={isProcessingPayment}
-                  className="w-full rounded-2xl bg-[#002B5B] text-white py-3.5 font-semibold hover:opacity-90 transition disabled:opacity-60"
-                >
-                  {isProcessingPayment ? "Đang xử lý..." : "Xác nhận thanh toán"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <CheckoutModal
+        open={showCheckout}
+        onClose={() => setShowCheckout(false)}
+        course={course}
+        onSuccess={handleCheckoutSuccess}
+      />
     </>
   );
 };

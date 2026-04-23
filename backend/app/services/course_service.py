@@ -81,7 +81,7 @@ class CourseService:
                 {
                     **course.to_dict(),
                     "avg_rating": round(avg, 1) if avg else 0,
-                    "total_reviews": count
+                    "total_reviews": int(count or 0)
                 }
                 for course, avg, count in courses
             ]
@@ -140,10 +140,7 @@ def get_course_detail_service(course_id):
         "avg_rating": round(avg, 1) if avg else 0,
         "total_reviews": count,
 
-        "instructor": {
-            "id": course.instructor_id,
-            "name": course.instructor.name if course.instructor else "Unknown"
-        },
+        "instructor": course.instructor.name if course.instructor else "Unknown",
         "lessons": [
             {
                 "lesson_id": lesson.lesson_id,

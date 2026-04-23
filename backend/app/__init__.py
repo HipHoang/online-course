@@ -18,7 +18,7 @@ def create_app():
     app.config.from_object(Config)
 
     # 2. Cấu hình CORS cho phép React (thường là port 3000) truy cập
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
 
     # 3. Khởi tạo Database
     db.init_app(app)
@@ -31,7 +31,7 @@ def create_app():
     from app.routes.user_routes import user_bp
     from app.routes.course_routes import course_bp
     from app.routes.lesson_routes import lesson_bp
-    # ... Đăng ký thêm các route khác tương tự
+    from app.routes.payment_routes import payment_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(user_bp, url_prefix='/api/users')
@@ -39,6 +39,7 @@ def create_app():
     app.register_blueprint(lesson_bp, url_prefix='/api/lessons')
     app.register_blueprint(review_bp, url_prefix='/api/reviews')
     app.register_blueprint(post_bp, url_prefix='/api/posts')
+    app.register_blueprint(payment_bp, url_prefix='/api/payment')
 
     @app.route('/')
     def index():

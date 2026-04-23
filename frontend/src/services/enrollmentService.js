@@ -1,87 +1,45 @@
-import { getCurrentUser } from "../untils/auth";
-
-const ENROLLMENTS_KEY = "userEnrollments";
-
-const getAllEnrollments = () => {
-  const data = localStorage.getItem(ENROLLMENTS_KEY);
-  return data ? JSON.parse(data) : {};
-};
-
-const saveAllEnrollments = (data) => {
-  localStorage.setItem(ENROLLMENTS_KEY, JSON.stringify(data));
-};
-
-const getCurrentUserId = () => {
-  const user = getCurrentUser();
-  return user?.id || null;
-};
+import API from "./authService";
 
 export const enrollmentService = {
-  getMyCourses() {
-    const userId = getCurrentUserId();
-    if (!userId) return [];
+  // ✅ Lấy danh sách khóa học đã đăng ký
+  async getMyCourses() {
+  try {
+    const res = await API.get("/courses/my-courses");
 
-    const all = getAllEnrollments();
-    return all[userId] || [];
+    console.log("RAW MY COURSES:", res.data);
+
+    return Array.isArray(res.data) ? res.data : [];
+  } catch (error) {
+    console.error("getMyCourses lỗi:", error.response?.data || error);
+    return [];
+  }
+},
+
+  // ✅ Đăng ký khóa học
+  async enrollCourse(courseId) {
+    try {
+      const res = await API.post("/courses/enroll", {
+        course_id: courseId,
+      });
+
+      return res.data;
+    } catch (error) {
+      console.error("enrollCourse lỗi:", error.response?.data || error);
+      throw error;
+    }
   },
 
-  isEnrolled(courseId) {
-    const myCourses = this.getMyCourses();
-    return myCourses.some((item) => Number(item.courseId) === Number(courseId));
-  },
+  // ✅ Kiểm tra đã đăng ký chưa
+  async isEnrolled(courseId) {
+    try {
+      const myCourses = await this.getMyCourses();
 
-  enrollCourse(course) {
-    const userId = getCurrentUserId();
-    if (!userId) throw new Error("USER_NOT_LOGGED_IN");
-
-    const all = getAllEnrollments();
-    const myCourses = all[userId] || [];
-
-    const existed = myCourses.some(
-      (item) => Number(item.courseId) === Number(course.id)
-    );
-
-    if (existed) return;
-
-    const newEnrollment = {
-      courseId: Number(course.id),
-      title: course.title,
-      image: course.image || "",
-      instructor: course.instructor || "",
-      progress: 0,
-      completedLessons: 0,
-      currentLessonId: course.chapters?.[0]?.lessons?.[0]?.id || null,
-      enrolledAt: new Date().toISOString(),
-      status: "learning",
-      paymentMethod: course.paymentMethod || null,
-      paidAt: course.paidAt || null,
-    };
-
-    all[userId] = [newEnrollment, ...myCourses];
-    saveAllEnrollments(all);
-  },
-
-  updateLessonProgress(courseId, lessonId, completedLessons) {
-    const userId = getCurrentUserId();
-    if (!userId) throw new Error("USER_NOT_LOGGED_IN");
-
-    const all = getAllEnrollments();
-    const myCourses = all[userId] || [];
-
-    all[userId] = myCourses.map((item) => {
-      if (Number(item.courseId) !== Number(courseId)) return item;
-
-      const progress = Math.min(100, completedLessons * 10);
-
-      return {
-        ...item,
-        currentLessonId: lessonId,
-        completedLessons,
-        progress,
-        status: progress >= 100 ? "completed" : "learning",
-      };
-    });
-
-    saveAllEnrollments(all);
+      return myCourses.some(
+        (item) => Number(item.courseId) === Number(courseId)
+      );
+    } catch (error) {
+      console.error("isEnrolled lỗi:", error);
+      return false;
+    }
   },
 };

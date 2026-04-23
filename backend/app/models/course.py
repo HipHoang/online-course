@@ -17,10 +17,13 @@ class Course(db.Model):
     def to_dict(self):
         return {
             "course_id": self.course_id,
+            "id": self.course_id,   # 🔥 thêm dòng này (QUAN TRỌNG)
             "title": self.title,
             "description": self.description,
-            "price": self.price,
+            "price": float(self.price or 0),  # 🔥 fix NULL
             "image": self.image,
             "instructor_id": self.instructor_id,
-            "instructor_name": self.instructor.name if self.instructor else "Unknown"
+            "instructor": self.instructor.name if self.instructor else "Unknown",  # 🔥 thống nhất key
+            "avg_rating": 0
         }
+

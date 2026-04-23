@@ -44,9 +44,11 @@ def search():
             is_free=is_free
         )
 
+        total = data.get("total", 0) if isinstance(data, dict) else 0
+
         return success_response(
             data=data,
-            message=f"Tìm thấy {len(data)} khóa học"
+            message=f"Tìm thấy {total} khóa học"
         )
 
     except Exception as e:

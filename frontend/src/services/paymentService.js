@@ -1,13 +1,40 @@
+import API from "./authService";
 import { storageService } from "./storageService";
 
 /**
- * MOCK payment service
- * Sau này chỉ cần thay phần createPayment / getMyPayments bằng API thật:
- * - POST /payments
- * - GET /payments/my-payments
+ * API thanh toán (Order PENDING → complete → ghi danh server).
  */
+export const paymentApi = {
+  async createOrder(courseId) {
+    const res = await API.post("/payment/orders", {
+      course_id: courseId,
+    });
+    const body = res.data;
+    if (body?.status === "error") {
+      throw Object.assign(new Error(body.message || "Lỗi tạo đơn"), {
+        response: { data: body },
+      });
+    }
+    return body?.data ?? body;
+  },
+
+  async completeOrder(orderId, paymentMethod) {
+    const res = await API.post(`/payment/orders/${orderId}/complete`, {
+      payment_method: paymentMethod,
+    });
+    const body = res.data;
+    if (body?.status === "error") {
+      throw Object.assign(new Error(body.message || "Lỗi thanh toán"), {
+        response: { data: body },
+      });
+    }
+    return body?.data ?? body;
+  },
+};
+
 const KEY = "payments";
 
+/** @deprecated Giữ để tương thích; luồng mới dùng paymentApi */
 export const paymentService = {
   createPayment(payload) {
     const payment = {

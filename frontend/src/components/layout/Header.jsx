@@ -66,12 +66,13 @@ const Header = () => {
 
     const delayDebounceFn = setTimeout(async () => {
       try {
-        const data = await courseService.searchCourses({
+        const { results } = await courseService.searchCoursesPaged({
           q: searchTerm,
           sort_by: "id",
           order: "asc",
+          size: 10,
         });
-        setResults(data);
+        setResults(results);
       } catch (error) {
         console.error("Lỗi tìm kiếm khóa học:", error);
         setResults([]);
@@ -144,11 +145,13 @@ const Header = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
               onFocus={() => searchTerm && setShowResults(true)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && results.length > 0) {
-                  setShowResults(false);
-                  navigate(`/courses/${results[0].id}`);
-                  setSearchTerm("");
-                }
+                if (e.key !== "Enter") return;
+                const q = searchTerm.trim();
+                if (!q) return;
+                e.preventDefault();
+                setShowResults(false);
+                navigate(`/search?q=${encodeURIComponent(q)}`);
+                setSearchTerm("");
               }}
               placeholder={
                 isTeacher

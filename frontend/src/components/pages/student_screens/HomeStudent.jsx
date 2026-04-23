@@ -303,10 +303,27 @@ const UserDashboard = ({ currentUser }) => {
   const [courses, setCourses] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
 
-  useEffect(() => {
-    const enrolled = enrollmentService.getMyCourses();
-    setMyCourses(enrolled);
-  }, []);
+ useEffect(() => {
+  const fetchMyCourses = async () => {
+    try {
+      const enrolled = await enrollmentService.getMyCourses();
+
+      console.log("MY COURSES:", enrolled);
+
+      if (Array.isArray(enrolled)) {
+        setMyCourses(enrolled);
+      } else {
+        setMyCourses([]);
+      }
+    } catch (err) {
+      console.error("Lỗi load myCourses:", err);
+      setMyCourses([]);
+    }
+  };
+
+  fetchMyCourses();
+}, []);
+
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -338,19 +355,21 @@ const UserDashboard = ({ currentUser }) => {
   }, [courses, activeTab]);
 
   const displayedFeaturedCourses = featuredCourses.slice(0, 4);
-  const continueLearningCourses = myCourses.filter(
+  const safeMyCourses = Array.isArray(myCourses) ? myCourses : [];
+
+  const continueLearningCourses = safeMyCourses.filter(
     (course) => Number(course.progress) < 100
   );
-  const roadmapCourses = myCourses.slice(0, 2);
+  const roadmapCourses = safeMyCourses.slice(0, 2);
 
-  const averageProgress = myCourses.length
+  const averageProgress = safeMyCourses.length
     ? Math.round(
-      myCourses.reduce((sum, item) => sum + Number(item.progress || 0), 0) /
-      myCourses.length
+      safeMyCourses.reduce((sum, item) => sum + Number(item.progress || 0), 0) /
+      safemyCourses.length
     )
     : 0;
 
-  const firstName = getFirstName(currentUser.fullName || "");
+  const firstName = getFirstName(currentUser?.user?.name || "");
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
@@ -534,18 +553,18 @@ const UserDashboard = ({ currentUser }) => {
             <div className="flex justify-between">
               <span className="text-gray-500">Đang học</span>
               <span className="font-semibold">
-                {myCourses.filter((c) => c.status === "Đang học").length}
+                {safeMyCourses.filter((c) => c.status === "learning").length}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Hoàn thành</span>
               <span className="font-semibold">
-                {myCourses.filter((c) => c.status === "Hoàn thành").length}
+                {safeMyCourses.filter((c) => c.status === "Hoàn thành").length}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Tổng khóa học</span>
-              <span className="font-semibold">{myCourses.length}</span>
+              <span className="font-semibold">{safeMyCourses.length}</span>
             </div>
           </div>
         </div>
@@ -601,7 +620,9 @@ const UserDashboard = ({ currentUser }) => {
 };
 
 const HomeStudent = () => {
-  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+  const stored = JSON.parse(localStorage.getItem("currentUser"));
+  const currentUser = stored?.user || null;
+
 
   if (!currentUser) {
     return <GuestHome />;
