@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AuthModal from "../auth/AuthModal";
-import { logoutUser } from "../../data/mockAuth";
 import { courseService } from "../../services/courseService";
+import { getCurrentUser, clearStoredAuth, isTeacherRole } from "../../untils/auth";
+
+
 
 const Header = () => {
   const navigate = useNavigate();
@@ -19,7 +21,9 @@ const Header = () => {
   const searchRef = useRef(null);
   const userMenuRef = useRef(null);
 
-  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+  const user = getCurrentUser();
+  const role = user?.role;
+  const isTeacher = isTeacherRole(role);
 
   useEffect(() => {
     const handleOpenAuthModal = (event) => {
@@ -80,14 +84,19 @@ const Header = () => {
   }, [searchTerm]);
 
   const handleLogout = () => {
-    logoutUser();
+    clearStoredAuth();
     window.location.href = "/";
   };
+  const displayName = user?.name || user?.fullName || "Người dùng";
+  const avatarText = displayName.trim().charAt(0).toUpperCase() || "U";
 
   return (
     <>
       <header className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200">
-        <div className="flex items-center gap-3 min-w-fit">
+        <div
+          className="flex items-center gap-3 min-w-fit cursor-pointer"
+          onClick={() => navigate(isTeacher ? "/teacher/dashboard" : "/")}
+        >
           <div className="text-blue-600">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -141,7 +150,11 @@ const Header = () => {
                   setSearchTerm("");
                 }
               }}
-              placeholder="Tìm kiếm khóa học, bài viết..."
+              placeholder={
+                isTeacher
+                  ? "Tìm kiếm học viên, khóa học..."
+                  : "Tìm kiếm khóa học, bài viết..."
+              }
               className="w-full py-3 pl-14 pr-4 bg-[#F0F2F5] border border-transparent rounded-full focus:bg-white focus:border-[#002B5B] focus:ring-1 focus:ring-[#002B5B] outline-none transition-all text-base"
             />
 
@@ -175,7 +188,10 @@ const Header = () => {
                           {item.title}
                         </p>
                         <p className="text-xs text-gray-400">
-                          {item.topic || item.category || item.description || "Khóa học"}
+                          {item.topic ||
+                            item.category ||
+                            item.description ||
+                            "Khóa học"}
                         </p>
                       </div>
                       <svg
@@ -204,7 +220,7 @@ const Header = () => {
           )}
         </div>
 
-        {!currentUser ? (
+        {!user ? (
           <div className="flex items-center gap-4 min-w-fit">
             <button
               onClick={() => {
@@ -239,36 +255,34 @@ const Header = () => {
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                  strokeWidth={1.8}
+                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V4a2 2 0 10-4 0v1.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
                 />
               </svg>
-              <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
-
-            <div className="h-6 w-px bg-gray-300 mx-1"></div>
 
             <div className="relative" ref={userMenuRef}>
               <button
                 onClick={() => setShowUserMenu((prev) => !prev)}
-                className="flex items-center gap-3"
+                className="flex items-center gap-3 hover:bg-gray-50 px-2 py-1.5 rounded-2xl transition"
               >
-                <div className="w-12 h-12 rounded-full bg-[#002B5B] text-white flex items-center justify-center font-bold text-lg">
-                  {currentUser.avatar || currentUser.fullName?.slice(0, 2)}
+                <div className="w-11 h-11 rounded-full bg-[#2F63D8] text-white flex items-center justify-center font-bold text-lg">
+                  {avatarText}
                 </div>
 
-                <div className="text-left hidden md:block">
-                  <p className="font-semibold text-[#0f172a] leading-tight">
-                    {currentUser.fullName}
+                <div className="text-left hidden sm:block">
+                  <p className="text-sm font-bold text-slate-800 leading-tight">
+                    {displayName}
                   </p>
-                  <p className="text-sm text-gray-500">
-                    {currentUser.role === "teacher" ? "Giảng viên" : "Học viên"}
+                  <p className="text-xs text-slate-500 mt-1">
+                    {isTeacher ? "Giảng viên" : "Học viên"}
                   </p>
                 </div>
 
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 text-gray-500"
+                  className={`h-5 w-5 text-gray-500 transition-transform ${showUserMenu ? "rotate-180" : ""
+                    }`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -283,16 +297,30 @@ const Header = () => {
               </button>
 
               {showUserMenu && (
-                <div className="absolute right-0 mt-3 w-52 bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden z-50">
-                  <button className="w-full text-left px-4 py-3 hover:bg-gray-50 text-sm">
-                    Hồ sơ cá nhân
+                <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden z-50">
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      navigate(isTeacher ? "/teacher/profile" : "/settings");
+                    }}
+                    className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-gray-50 transition"
+                  >
+                    {isTeacher ? "Hồ sơ giảng viên" : "Thông tin tài khoản"}
                   </button>
-                  <button className="w-full text-left px-4 py-3 hover:bg-gray-50 text-sm">
-                    Cài đặt tài khoản
+
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      navigate(isTeacher ? "/teacher/settings" : "/settings");
+                    }}
+                    className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-gray-50 transition"
+                  >
+                    Cài đặt
                   </button>
+
                   <button
                     onClick={handleLogout}
-                    className="w-full text-left px-4 py-3 hover:bg-red-50 text-sm text-red-500"
+                    className="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition"
                   >
                     Đăng xuất
                   </button>
@@ -307,7 +335,7 @@ const Header = () => {
         <AuthModal
           type={authType}
           onClose={() => setOpenModal(false)}
-          onSwitchType={(newType) => setAuthType(newType)}
+          onSwitchType={(type) => setAuthType(type)}
         />
       )}
     </>
