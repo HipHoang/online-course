@@ -7,10 +7,11 @@ from .post import Post, Comment
 from .document import Document
 from .course_progess import CourseProgress
 from .lesson_progess import LessonProgress
+from .review import Review
 
 # Export tất cả để các module khác dễ dàng sử dụng
 __all__ = [
     'User', 'Course', 'Lesson', 'Enrollment', 'Payment',
     'Quiz', 'Question', 'Answer', 'Post', 'Comment', 'Document',
-    'CourseProgress', 'LessonProgress'
+    'CourseProgress', 'LessonProgress', 'Review'
 ]

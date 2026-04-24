@@ -12,9 +12,9 @@ class User(db.Model):
     user_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(255), unique=True, nullable=False)
-    password = db.Column(db.String(255), nullable=False)
+    password = db.Column(db.String(255), nullable=True)
     role = db.Column(db.String(50),db.Enum(UserRole), default='student',)
-
+    provider = db.Column(db.String(50), default="local")
     # Relationships
     enrollments = db.relationship('Enrollment', backref='user', lazy=True)
     posts = db.relationship('Post', backref='author', lazy=True)

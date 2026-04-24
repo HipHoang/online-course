@@ -16,16 +16,32 @@ course_bp = Blueprint('course_bp', __name__)
 @course_bp.route('/search', methods=['GET'])
 def search():
     try:
+        page = request.args.get('page', 1, type=int)
+        size = min(request.args.get('size', 10, type=int), 50)
         keyword = request.args.get('q', '').strip()
         topic = request.args.get('topic', '').strip()
+        min_price = request.args.get('min_price', type=float)
+        max_price = request.args.get('max_price', type=float)
+        rating = request.args.get('rating', type=float)
+        has_review = request.args.get('has_review')
+        is_free = request.args.get('is_free')
+        has_review = True if has_review == 'true' else False if has_review == 'false' else None
+        is_free = True if is_free == 'true' else False if is_free == 'false' else None
         sort_by = request.args.get('sort_by', 'id')
         order = request.args.get('order', 'asc')
 
         data = CourseService.search_and_sort_courses(
+            page=page,
+            size=size,
             keyword=keyword,
             topic=topic,
             sort_by=sort_by,
-            order=order
+            order=order,
+            min_price=min_price,
+            max_price=max_price,
+            rating=rating,
+            has_review=has_review,
+            is_free=is_free
         )
 
         return success_response(
@@ -42,15 +58,45 @@ def search():
 # =========================
 @course_bp.route('/', methods=['GET'])
 def get_courses():
-    page = request.args.get('page', 1, type=int)
-    size = min(request.args.get('size', 10, type=int), 50)
+    try:
+        page = request.args.get('page', 1, type=int)
+        size = min(request.args.get('size', 10, type=int), 50)
 
-    keyword = request.args.get('q')
-    sort = request.args.get('sort', 'id')
+        keyword = request.args.get('q')
+        topic = request.args.get('topic')
+        sort_by = request.args.get('sort_by', 'id')
+        order = request.args.get('order', 'asc')
 
-    data = get_courses_service(page, size, keyword, sort)
+        min_price = request.args.get('min_price', type=float)
+        max_price = request.args.get('max_price', type=float)
+        rating = request.args.get('rating', type=float)
 
-    return jsonify(data), 200
+        is_free = request.args.get('is_free')
+        if is_free is not None:
+            is_free = is_free.lower() == 'true'
+
+        has_review = request.args.get('has_review')
+        if has_review is not None:
+            has_review = has_review.lower() == 'true'
+
+        data = CourseService.search_and_sort_courses(
+            page=page,
+            size=size,
+            keyword=keyword,
+            topic=topic,
+            sort_by=sort_by,
+            order=order,
+            min_price=min_price,
+            max_price=max_price,
+            rating=rating,
+            has_review=has_review,
+            is_free=is_free
+        )
+
+        return success_response(data,"Lấy danh sách khóa học thành công",200)
+
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
 
 
 # =========================
@@ -63,7 +109,7 @@ def get_course_detail(course_id):
     if not data:
         return jsonify({"message": "Course not found"}), 404
 
-    return jsonify(data), 200
+    return success_response(data=data,message="Lấy chi tiết khóa học thành công",status_code=200)
 
 
 # =========================
