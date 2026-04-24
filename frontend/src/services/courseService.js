@@ -1,5 +1,5 @@
-import API from "./authService";
 import { mockCourses } from "../data/mockCourses";
+import API from "./authService";
 
 /**
  * Service khóa học
@@ -10,6 +10,22 @@ export const courseService = {
   async getAllCourses() {
     try {
       const res = await API.get("/courses");
+      const data = res.data?.data || res.data || [];
+
+      if (Array.isArray(data) && data.length > 0) {
+        return data.map((item) => this.normalizeCourse(item));
+      }
+
+      return mockCourses;
+    } catch (error) {
+      console.warn("API getAllCourses lỗi, dùng mock:", error);
+      return mockCourses;
+    }
+  },
+
+  async createCourse() {
+    try {
+      const res = await API.post("/courses");
       const data = res.data?.data || res.data || [];
 
       if (Array.isArray(data) && data.length > 0) {

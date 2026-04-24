@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   FiBookOpen,
   FiDollarSign,
@@ -7,6 +7,9 @@ import {
   FiStar,
   FiUsers,
 } from "react-icons/fi";
+import CreateCourseForm from "../form/CreateCourseForm";
+
+
 
 const stats = [
   { title: "Khóa học", value: "12", icon: <FiBookOpen size={22} /> },
@@ -39,6 +42,8 @@ const questions = [
   },
 ];
 
+
+
 const teacherCourses = [
   {
     id: 1,
@@ -67,6 +72,7 @@ const teacherCourses = [
 ];
 
 const TeacherDashboard = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
   return (
     <div className="space-y-8">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -84,12 +90,19 @@ const TeacherDashboard = () => {
             <option>Tháng 3, 2025</option>
           </select>
 
-          <button className="inline-flex items-center gap-2 bg-[#0B5CFF] hover:bg-blue-700 text-white px-5 py-3 rounded-2xl font-semibold shadow-md transition">
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center gap-2 bg-[#0B5CFF] hover:bg-blue-700 text-white px-5 py-3 rounded-2xl font-semibold shadow-md transition"
+          >
             <FiPlus />
             Tạo khóa học
           </button>
         </div>
       </div>
+
+      {isModalOpen && (
+        <CreateCourseForm onClose={() => setIsModalOpen(false)} />
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         {stats.map((item, index) => (
@@ -212,7 +225,10 @@ const TeacherDashboard = () => {
         </div>
       </div>
     </div>
+    
   );
+
+  
 };
 
 export default TeacherDashboard;
