@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { loginApi } from "../../services/authService";
+import { setStoredAuth, isTeacherRole } from "../../untils/auth";
 
 const LoginForm = ({ onSwitchType }) => {
   const [form, setForm] = useState({
@@ -31,33 +32,36 @@ const LoginForm = ({ onSwitchType }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+  
     const newErrors = validate();
     setErrors(newErrors);
     setSubmitError("");
-
+  
     if (Object.keys(newErrors).length > 0) return;
-
+  
     try {
       setLoading(true);
-
+  
       const data = await loginApi({
         email: form.email.trim(),
         password: form.password.trim(),
       });
-
-      localStorage.clear(); // 💥 reset user cũ
-
-      localStorage.setItem("token", data.access_token);
-      localStorage.setItem("currentUser", JSON.stringify(data.user));
-
-      window.location.href = "/";
+  
+      setStoredAuth(data, form.remember);
+  
+      const role = data?.user?.role;
+  
+      if (isTeacherRole(role)) {
+        window.location.href = "/teacher/dashboard";
+      } else {
+        window.location.href = "/";
+      }
     } catch (error) {
       console.error(error);
       setSubmitError(
         error.response?.data?.message ||
-        error.response?.data?.error ||
-        "Email hoặc mật khẩu không đúng"
+          error.response?.data?.error ||
+          "Email hoặc mật khẩu không đúng"
       );
     } finally {
       setLoading(false);
@@ -88,10 +92,11 @@ const LoginForm = ({ onSwitchType }) => {
             placeholder="Email"
             value={form.email}
             onChange={handleChange}
-            className={`w-full rounded-full border px-5 py-3 outline-none transition ${errors.email
+            className={`w-full rounded-full border px-5 py-3 outline-none transition ${
+              errors.email
                 ? "border-red-400 bg-red-50 text-red-500 placeholder:text-red-300"
                 : "border-gray-200 bg-white focus:border-[#002B5B]"
-              }`}
+            }`}
           />
 
           {errors.email && (
@@ -106,10 +111,11 @@ const LoginForm = ({ onSwitchType }) => {
             placeholder="Mật khẩu"
             value={form.password}
             onChange={handleChange}
-            className={`w-full rounded-full border px-5 py-3 outline-none transition ${errors.password
+            className={`w-full rounded-full border px-5 py-3 outline-none transition ${
+              errors.password
                 ? "border-red-400 bg-red-50 text-red-500 placeholder:text-red-300"
                 : "border-gray-200 bg-white focus:border-[#002B5B]"
-              }`}
+            }`}
           />
 
           {errors.password && (

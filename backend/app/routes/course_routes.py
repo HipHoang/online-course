@@ -9,6 +9,50 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 # ✅ Khai báo 1 lần duy nhất
 course_bp = Blueprint('course_bp', __name__)
 
+@course_bp.route('/teaching', methods=['GET'])
+@jwt_required()
+def get_instructor_courses():
+    try:
+        # Lấy ID giảng viên từ token JWT
+        instructor_id = get_jwt_identity()
+        
+        # Gọi service để lấy dữ liệu
+        data, status = CourseService.get_instructor_courses(instructor_id)
+        
+        if status == 200:
+            return success_response(
+                data=data, 
+                message="Lấy danh sách khóa học giảng dạy thành công", 
+                status_code=200
+            )
+        
+        return error_response(message=data.get("message"), status_code=status)
+
+    except Exception as e:
+        return error_response(message=str(e), status_code=500)
+
+@course_bp.route('/', methods=['POST'])
+@jwt_required() 
+def create_course():
+    try:
+        
+        data = request.form.to_dict()
+        
+        image_file = request.files.get('image')
+
+        if not data.get('title') or not data.get('instructor_id'):
+            return error_response(message="Thiếu tiêu đề hoặc ID giảng viên", status_code=400)
+
+        result, status = CourseService.create_course(data, image_file)
+        
+        if status == 201:
+            return success_response(data=result['course'], message=result['message'], status_code=201)
+        
+        return error_response(message=result['message'], status_code=status)
+
+    except Exception as e:
+        return error_response(message=str(e), status_code=500)
+
 
 # =========================
 # SEARCH COURSE
@@ -16,21 +60,39 @@ course_bp = Blueprint('course_bp', __name__)
 @course_bp.route('/search', methods=['GET'])
 def search():
     try:
+        page = request.args.get('page', 1, type=int)
+        size = min(request.args.get('size', 10, type=int), 50)
         keyword = request.args.get('q', '').strip()
         topic = request.args.get('topic', '').strip()
+        min_price = request.args.get('min_price', type=float)
+        max_price = request.args.get('max_price', type=float)
+        rating = request.args.get('rating', type=float)
+        has_review = request.args.get('has_review')
+        is_free = request.args.get('is_free')
+        has_review = True if has_review == 'true' else False if has_review == 'false' else None
+        is_free = True if is_free == 'true' else False if is_free == 'false' else None
         sort_by = request.args.get('sort_by', 'id')
         order = request.args.get('order', 'asc')
 
         data = CourseService.search_and_sort_courses(
+            page=page,
+            size=size,
             keyword=keyword,
             topic=topic,
             sort_by=sort_by,
-            order=order
+            order=order,
+            min_price=min_price,
+            max_price=max_price,
+            rating=rating,
+            has_review=has_review,
+            is_free=is_free
         )
+
+        total = data.get("total", 0) if isinstance(data, dict) else 0
 
         return success_response(
             data=data,
-            message=f"Tìm thấy {len(data)} khóa học"
+            message=f"Tìm thấy {total} khóa học"
         )
 
     except Exception as e:
@@ -42,15 +104,45 @@ def search():
 # =========================
 @course_bp.route('/', methods=['GET'])
 def get_courses():
-    page = request.args.get('page', 1, type=int)
-    size = min(request.args.get('size', 10, type=int), 50)
+    try:
+        page = request.args.get('page', 1, type=int)
+        size = min(request.args.get('size', 10, type=int), 50)
 
-    keyword = request.args.get('q')
-    sort = request.args.get('sort', 'id')
+        keyword = request.args.get('q')
+        topic = request.args.get('topic')
+        sort_by = request.args.get('sort_by', 'id')
+        order = request.args.get('order', 'asc')
 
-    data = get_courses_service(page, size, keyword, sort)
+        min_price = request.args.get('min_price', type=float)
+        max_price = request.args.get('max_price', type=float)
+        rating = request.args.get('rating', type=float)
 
-    return jsonify(data), 200
+        is_free = request.args.get('is_free')
+        if is_free is not None:
+            is_free = is_free.lower() == 'true'
+
+        has_review = request.args.get('has_review')
+        if has_review is not None:
+            has_review = has_review.lower() == 'true'
+
+        data = CourseService.search_and_sort_courses(
+            page=page,
+            size=size,
+            keyword=keyword,
+            topic=topic,
+            sort_by=sort_by,
+            order=order,
+            min_price=min_price,
+            max_price=max_price,
+            rating=rating,
+            has_review=has_review,
+            is_free=is_free
+        )
+
+        return success_response(data,"Lấy danh sách khóa học thành công",200)
+
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
 
 
 # =========================
@@ -63,7 +155,7 @@ def get_course_detail(course_id):
     if not data:
         return jsonify({"message": "Course not found"}), 404
 
-    return jsonify(data), 200
+    return success_response(data=data,message="Lấy chi tiết khóa học thành công",status_code=200)
 
 
 # =========================
