@@ -2,7 +2,7 @@ from flask import jsonify
 from zope.interface import provider
 
 from app.models.user import User, db
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, create_refresh_token
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from dotenv import load_dotenv
@@ -32,10 +32,12 @@ def login_user(username, password):
 
     if user and user.check_password(password):
         access_token = create_access_token(identity=str(user.user_id))
+        refresh_token = create_refresh_token(identity=str(user.user_id))
 
         return jsonify({
             "message": "Đăng nhập thành công",
             "access_token": access_token,
+            "refresh_token": refresh_token,
             "user": {
                 "id": user.user_id,
                 "name": user.name,
@@ -45,6 +47,7 @@ def login_user(username, password):
         }), 200
 
     return jsonify({"message": "Sai tài khoản hoặc mật khẩu"}), 401
+
 
 def verify_google_token(token):
     try:

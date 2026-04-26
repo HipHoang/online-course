@@ -9,6 +9,50 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 # ✅ Khai báo 1 lần duy nhất
 course_bp = Blueprint('course_bp', __name__)
 
+@course_bp.route('/teaching', methods=['GET'])
+@jwt_required()
+def get_instructor_courses():
+    try:
+        # Lấy ID giảng viên từ token JWT
+        instructor_id = get_jwt_identity()
+        
+        # Gọi service để lấy dữ liệu
+        data, status = CourseService.get_instructor_courses(instructor_id)
+        
+        if status == 200:
+            return success_response(
+                data=data, 
+                message="Lấy danh sách khóa học giảng dạy thành công", 
+                status_code=200
+            )
+        
+        return error_response(message=data.get("message"), status_code=status)
+
+    except Exception as e:
+        return error_response(message=str(e), status_code=500)
+
+@course_bp.route('/', methods=['POST'])
+@jwt_required() 
+def create_course():
+    try:
+        
+        data = request.form.to_dict()
+        
+        image_file = request.files.get('image')
+
+        if not data.get('title') or not data.get('instructor_id'):
+            return error_response(message="Thiếu tiêu đề hoặc ID giảng viên", status_code=400)
+
+        result, status = CourseService.create_course(data, image_file)
+        
+        if status == 201:
+            return success_response(data=result['course'], message=result['message'], status_code=201)
+        
+        return error_response(message=result['message'], status_code=status)
+
+    except Exception as e:
+        return error_response(message=str(e), status_code=500)
+
 
 # =========================
 # SEARCH COURSE
@@ -44,9 +88,11 @@ def search():
             is_free=is_free
         )
 
+        total = data.get("total", 0) if isinstance(data, dict) else 0
+
         return success_response(
             data=data,
-            message=f"Tìm thấy {len(data)} khóa học"
+            message=f"Tìm thấy {total} khóa học"
         )
 
     except Exception as e:

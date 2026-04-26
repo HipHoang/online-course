@@ -11,6 +11,9 @@ import TeacherDashboard from "./components/pages/teacher_screens/TeacherDashboar
 import CourseTeacher from "./components/pages/teacher_screens/CourseTeacher";
 import TeacherProfile from "./components/pages/teacher_screens/TeacherProfile";
 
+import AIStudent from "./components/pages/student_screens/AIStudent";
+import PathwayStudent from "./components/pages/student_screens/PathwayStudent";
+
 function App() {
   return (
     <BrowserRouter>
@@ -21,10 +24,10 @@ function App() {
           <Route path="/courses" element={<CourseStudent />} />
           <Route path="/all-courses" element={<AllCourses />} />
           <Route path="/courses/:id" element={<CourseDetail />} />
-          <Route path="/pathway" element={<div>Trang lộ trình học</div>} />
+          <Route path="/pathway" element={<PathwayStudent />} />
           <Route path="/qa" element={<div>Trang hỏi đáp</div>} />
           <Route path="/settings" element={<div>Trang cài đặt</div>} />
-          <Route path="/ai" element={<div>Trang đề xuất AI</div>} />
+          <Route path="/ai" element={<AIStudent />} />
           <Route path="/learn/:id" element={<LearningPage />} />
 
           {/* teacher */}

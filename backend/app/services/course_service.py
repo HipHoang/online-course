@@ -4,8 +4,51 @@ from calendar import c
 from app.models import Course, Enrollment, CourseProgress, Lesson, Review
 from sqlalchemy import asc, desc, func
 from app.configs.db import db
+from app.services.cloudinary_service import CloudinaryService
+from app.models.user import User
 
 class CourseService:
+    @staticmethod
+    def create_course(data, image_file):
+        try:
+            
+            instructor_id = data.get('instructor_id')
+            instructor = User.query.get(instructor_id)
+            if not instructor:
+                return {"message": "Giảng viên không tồn tại"}, 404
+
+            # 2. Upload ảnh lên Cloudinary
+            image_url = None
+            if image_file:
+                # Ní dùng cái CloudinaryService ní vừa viết ở trên
+                url, public_id = CloudinaryService.upload_image(image_file, folder="courses")
+                image_url = url
+
+            # 3. Tạo Object Course
+            new_course = Course(
+                title=data.get('title'),
+                description=data.get('description'),
+                price=float(data.get('price', 0)),
+                instructor_id=int(instructor_id),
+                image=image_url # Lưu URL từ Cloudinary vào cột image
+            )
+
+            db.session.add(new_course)
+            db.session.commit()
+
+            return {
+                "message": "Tạo khóa học thành công",
+                "course": {
+                    "id": new_course.course_id,
+                    "title": new_course.title,
+                    "image": new_course.image
+                }
+            }, 201
+
+        except Exception as e:
+            db.session.rollback()
+            return {"message": str(e)}, 500
+    
     @staticmethod
     def search_and_sort_courses(page=1, size=10,keyword=None, topic=None, sort_by='id', order='asc', min_price=None, max_price=None, rating=None, has_review=None, is_free=None):
 
@@ -81,11 +124,39 @@ class CourseService:
                 {
                     **course.to_dict(),
                     "avg_rating": round(avg, 1) if avg else 0,
-                    "total_reviews": count
+                    "total_reviews": int(count or 0)
                 }
                 for course, avg, count in courses
             ]
         }
+
+    @staticmethod
+    def get_instructor_courses(instructor_id):
+        try:
+            # Truy vấn khóa học và tính avg_rating, total_reviews
+            avg_rating = func.avg(Review.rating).label("avg_rating")
+            total_reviews = func.count(Review.review_id).label("total_reviews")
+            
+            query = db.session.query(
+                Course, 
+                avg_rating, 
+                total_reviews
+            ).outerjoin(Review, Course.course_id == Review.course_id) \
+             .filter(Course.instructor_id == instructor_id) \
+             .group_by(Course.course_id).all()
+
+            results = []
+            for course, avg, count in query:
+                data = course.to_dict()
+                data["avg_rating"] = round(avg, 1) if avg else 0
+                data["total_reviews"] = count
+                # Bạn có thể thêm số lượng học viên nếu cần:
+                # data["total_students"] = Enrollment.query.filter_by(course_id=course.course_id).count()
+                results.append(data)
+
+            return results, 200
+        except Exception as e:
+            return {"message": str(e)}, 500
 
 def get_courses_service(page=1, size=10, keyword=None, sort='id'):
     query = db.session.query(
@@ -118,7 +189,6 @@ def get_courses_service(page=1, size=10, keyword=None, sort='id'):
         "results": results
     }
 
-
 def get_course_detail_service(course_id):
     course = Course.query.get(course_id)
 
@@ -140,6 +210,7 @@ def get_course_detail_service(course_id):
         "avg_rating": round(avg, 1) if avg else 0,
         "total_reviews": count,
 
+#         "instructor": course.instructor.name if course.instructor else "Unknown",
         "instructor": {
             "id": course.instructor_id,
             "name": course.instructor.name if course.instructor else "Unknown"
@@ -191,6 +262,7 @@ def get_course_user(user_id):
     return result
 
 def enroll_course_service(user_id, course_id):
+
     existing = Enrollment.query.filter_by(
         user_id=user_id,
         course_id=course_id
@@ -221,3 +293,4 @@ def enroll_course_service(user_id, course_id):
     db.session.commit()
 
     return {"message": "Enroll success"}, 200
+
