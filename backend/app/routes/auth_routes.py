@@ -1,4 +1,4 @@
-from flask import Blueprint, request
+from flask import Blueprint, request, jsonify
 from app.services.auth_service import register_user, login_user, verify_google_token
 from app.utils.response import error_response, success_response
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, create_refresh_token
