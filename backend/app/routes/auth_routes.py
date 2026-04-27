@@ -1,7 +1,7 @@
 from flask import Blueprint, request
-from app.services.auth_service import register_user, login_user, verify_google_token
+from app.services.auth_service import register_user, login_user, verify_google_token, get_user_by_id
 from app.utils.response import error_response, success_response
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 
 auth_bp = Blueprint('auth_bp', __name__)
 
@@ -119,3 +119,12 @@ def login_google():
             "email": user.email
         }
     }, "Login Google thành công")
+
+@auth_bp.route("/me", methods=["GET"])
+@jwt_required()
+def get_me():
+    user_id = get_jwt_identity()
+    user = get_user_by_id(user_id)
+    if not user:
+        return error_response("User not found", 404)
+    return success_response(user, "User profile")

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useMemo, useState } from "react";
 import {
   FiArrowLeft,
@@ -12,9 +11,9 @@ import {
 } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
 import { courseService } from "../../../services/courseService";
-import { enrollmentService } from "../../../services/enrollmentService";
 import { qaService } from "../../../services/qaService";
 import { getCurrentUser } from "../../../untils/auth";
+import { enrollmentService } from "../../../services/enrollmentService";
 
 const LearningPage = () => {
   const { id } = useParams();
@@ -27,46 +26,55 @@ const LearningPage = () => {
   const [questionText, setQuestionText] = useState("");
   const [questions, setQuestions] = useState([]);
 
-  const refreshQA = (courseId) => {
-    setQuestions(qaService.getCourseQuestions(courseId));
-  };
-
   useEffect(() => {
     const fetchCourse = async () => {
-      const data = await courseService.getCourseById(id);
-      setCourse(data);
+      try {
+        const data = await courseService.getCourseById(id);
+        setCourse(data);
 
-      const enrollments = enrollmentService.getMyCourses();
-      const enrolled = enrollments.find((item) => item.courseId === Number(id));
-      setEnrolledCourse(enrolled || null);
+        const isEnrolled = await enrollmentService.checkEnrollment(id);
 
-      const lessonId = enrolled?.currentLessonId;
-      let foundLesson = null;
+        if (!isEnrolled) {
+          alert("Bạn chưa đăng ký khóa học này");
+          navigate(`/courses/${id}`);
+          return;
+        }
 
-      const initialState = {};
-      data.chapters?.forEach((chapter, index) => {
-        initialState[chapter.id] = index === 0;
+        const progressData = await enrollmentService.getLearningProgress(id);
+        setEnrolledCourse(progressData);
 
-        chapter.lessons?.forEach((lesson) => {
-          if (lesson.id === lessonId) {
-            foundLesson = lesson;
-          }
+        const lessonId = progressData?.currentLessonId;
+
+        let foundLesson = null;
+        const initialState = {};
+
+        data.chapters?.forEach((chapter, index) => {
+          initialState[chapter.id] = index === 0;
+
+          chapter.lessons?.forEach((lesson) => {
+            if (lesson.id === lessonId) {
+              foundLesson = lesson;
+            }
+          });
         });
-      });
 
-      setOpenChapters(initialState);
+        setOpenChapters(initialState);
 
-      const firstLesson =
-        data?.chapters?.[0]?.lessons?.[0] ||
-        data?.lessons?.[0] ||
-        null;
+        const firstLesson =
+          data?.chapters?.[0]?.lessons?.[0] ||
+          data?.lessons?.[0] ||
+          null;
 
-      setCurrentLesson(foundLesson || firstLesson);
-      refreshQA(data.id);
+        setCurrentLesson(foundLesson || firstLesson);
+        
+        // Removed refreshQA(id) as it depends on mock data
+      } catch (error) {
+        console.error(error);
+      }
     };
 
     fetchCourse();
-  }, [id]);
+  }, [id, navigate]);
 
   const allLessons = useMemo(() => {
     if (!course) return [];
@@ -94,30 +102,32 @@ const LearningPage = () => {
     setCurrentLesson(lesson);
   };
 
-  const handleCompleteLesson = () => {
+  const handleCompleteLesson = async () => {
     if (!currentLesson) return;
 
-    const newCompletedLessons = Math.max(
-      completedLessons,
-      currentLessonIndex + 1
-    );
+    try {
+      // Assuming updateProgress exists in enrollmentService
+      await enrollmentService.updateProgress({
+        courseId: id,
+        lessonId: currentLesson.id,
+      });
 
-    enrollmentService.updateLessonProgress(
-      id,
-      currentLesson.id,
-      newCompletedLessons
-    );
+      const progressData = await enrollmentService.getLearningProgress(id);
+      setEnrolledCourse(progressData);
 
-    const enrollments = enrollmentService.getMyCourses();
-    const enrolled = enrollments.find((item) => item.courseId === Number(id));
-    setEnrolledCourse(enrolled || null);
+      const newCompletedLessons = progressData?.completedLessons || 0;
 
-    alert(
-      newCompletedLessons >= allLessons.length
-        ? "Chúc mừng! Bạn đã hoàn thành khóa học."
-        : "Đã hoàn thành bài học. Bài tiếp theo đã được mở khóa!"
-    );
+      alert(
+        newCompletedLessons >= allLessons.length
+          ? "Chúc mừng! Bạn đã hoàn thành khóa học."
+          : "Đã hoàn thành bài học. Bài tiếp theo đã được mở khóa!"
+      );
+    } catch (error) {
+      console.error(error);
+      alert("Không thể cập nhật tiến độ.");
+    }
   };
+
 
   const handleNextLesson = () => {
     if (currentLessonIndex < allLessons.length - 1) {
@@ -162,7 +172,6 @@ const LearningPage = () => {
     try {
       qaService.askQuestion(id, questionText);
       setQuestionText("");
-      refreshQA(id);
     } catch (error) {
       console.error(error);
       alert("Không thể gửi câu hỏi.");
@@ -304,9 +313,8 @@ const LearningPage = () => {
                       <button
                         key={lesson.id}
                         onClick={() => handleSelectLesson(lesson, flatIndex)}
-                        className={`w-full text-left px-4 py-4 flex items-center justify-between hover:bg-blue-50 ${
-                          currentLesson.id === lesson.id ? "bg-orange-50" : ""
-                        }`}
+                        className={`w-full text-left px-4 py-4 flex items-center justify-between hover:bg-blue-50 ${currentLesson.id === lesson.id ? "bg-orange-50" : ""
+                          }`}
                       >
                         <div>
                           <p className="text-slate-800">
@@ -361,36 +369,6 @@ const LearningPage = () => {
               <FiSend />
               Gửi câu hỏi
             </button>
-          </div>
-
-          <div className="h-64 overflow-y-auto space-y-3 pr-2 border border-red-300">
-            {questions.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-gray-200 p-4 text-sm text-slate-500">
-                Chưa có câu hỏi nào cho khóa học này.
-              </div>
-            ) : (
-              questions.map((item) => (
-                <div key={item.id} className="rounded-2xl border border-gray-100 p-4">
-                  <div className="text-sm font-semibold text-slate-800 mb-1">
-                    {item.userName}
-                  </div>
-                  <p className="text-sm text-slate-600 leading-6">
-                    {item.question}
-                  </p>
-
-                  {item.answer && (
-                    <div className="mt-3 rounded-xl bg-slate-50 border border-gray-100 p-3">
-                      <div className="text-xs font-semibold text-[#002B5B] mb-1">
-                        Phản hồi từ {item.answer.answeredBy}
-                      </div>
-                      <p className="text-sm text-slate-600 leading-6">
-                        {item.answer.text}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
           </div>
         </div>
       </div>

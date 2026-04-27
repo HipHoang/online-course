@@ -15,10 +15,11 @@ import {
 } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
 import { courseService } from "../../../services/courseService";
-import { enrollmentService } from "../../../services/enrollmentService";
 import { paymentService } from "../../../services/paymentService";
 import { reviewService } from "../../../services/reviewService";
 import { getCurrentUser } from "../../../untils/auth";
+import { enrollmentService } from "../../../services/enrollmentService";
+import apiClient from "../../../untils/auth";
 
 const formatPrice = (price) => {
   if (!price || Number(price) === 0) return "Miễn phí";
@@ -33,6 +34,7 @@ const CourseDetail = () => {
   const [loading, setLoading] = useState(true);
   const [openChapters, setOpenChapters] = useState({});
   const [isEnrolled, setIsEnrolled] = useState(false);
+  const [checkingEnrollment, setCheckingEnrollment] = useState(true);
 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("momo");
@@ -76,7 +78,8 @@ const CourseDetail = () => {
       try {
         const data = await courseService.getCourseById(id);
         setCourse(data);
-        setIsEnrolled(enrollmentService.isEnrolled(id));
+        const enrolled = await enrollmentService.checkEnrollment(id);
+        setIsEnrolled(enrolled);
 
         const initialState = {};
         data.chapters?.forEach((chapter, index) => {
@@ -121,9 +124,11 @@ const CourseDetail = () => {
     );
   };
 
-  const enrollFreeCourse = () => {
+  // Thêm async vào đây 
+  const enrollFreeCourse = async () => {
     try {
-      enrollmentService.enrollCourse(course);
+      await enrollmentService.enrollCourse(course.id);
+
       setIsEnrolled(true);
       alert("Đăng ký khóa học thành công!");
     } catch (error) {
@@ -131,6 +136,7 @@ const CourseDetail = () => {
       alert("Có lỗi xảy ra khi đăng ký khóa học.");
     }
   };
+
 
   const handleEnrollCourse = () => {
     const currentUser = getCurrentUser();
@@ -155,49 +161,44 @@ const CourseDetail = () => {
 
   const handleConfirmPayment = async () => {
     if (!paymentForm.fullName.trim() || !paymentForm.phone.trim() || !paymentForm.email.trim()) {
-      alert("Vui lòng nhập đầy đủ họ tên, số điện thoại và email.");
+      alert("Vui lòng nhập đầy đủ thông tin.");
+      return;
+    }
+
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      alert("Bạn cần đăng nhập");
       return;
     }
 
     setIsProcessingPayment(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      console.log("Creating payment...");
 
-      paymentService.createPayment({
-        courseId: course.id,
-        courseTitle: course.title,
-        amount: Number(course.price || 0),
-        method: paymentMethod,
-        customerName: paymentForm.fullName,
-        phone: paymentForm.phone,
-        email: paymentForm.email,
-        note: paymentForm.note,
-      });
-
-      enrollmentService.enrollCourse({
-        ...course,
-        paymentMethod,
-        paidAt: new Date().toISOString(),
-      });
-
-      setIsEnrolled(true);
-      setShowPaymentModal(false);
-
-      alert(
-        paymentMethod === "momo"
-          ? "Thanh toán MoMo thành công! Bạn đã được đăng ký khóa học."
-          : "Thanh toán thành công! Bạn đã được đăng ký khóa học."
+      const res = await apiClient.post(
+        "/payment/checkout",
+        {
+          user_id: currentUser.id,
+          course_id: course.id,
+          amount: course.price,
+        }
       );
 
-      navigate(`/learn/${course.id}`);
+      const paymentUrl = res.data.payment_url;
+
+      console.log("Redirect to:", paymentUrl);
+
+      window.location.href = paymentUrl;
+
     } catch (error) {
-      console.error(error);
-      alert("Thanh toán thất bại. Vui lòng thử lại.");
+      console.error("Payment error:", error);
+      alert("Không thể tạo thanh toán");
     } finally {
       setIsProcessingPayment(false);
     }
   };
+
 
   const handleLearnNow = () => {
     const currentUser = getCurrentUser();
@@ -258,6 +259,41 @@ const CourseDetail = () => {
       </div>
     );
   }
+
+  // useEffect(() => {
+  //   const fetchCourse = async () => {
+  //     try {
+  //       setLoading(true);
+  //       setCheckingEnrollment(true);
+
+  //       const data = await courseService.getCourseById(id);
+  //       setCourse(data);
+
+  //       // ✅ GỌI API thật qua service
+  //       const enrolled = await enrollmentService.checkEnrollment(id);
+  //       setIsEnrolled(enrolled);
+
+  //       // UI chapters
+  //       const initialState = {};
+  //       data.chapters?.forEach((chapter, index) => {
+  //         initialState[chapter.id] = index === 0;
+  //       });
+  //       setOpenChapters(initialState);
+
+  //       refreshReviewData(data.id);
+
+  //     } catch (error) {
+  //       console.error("fetchCourse ERROR:", error);
+  //     } finally {
+  //       setLoading(false);
+  //       setCheckingEnrollment(false);
+  //     }
+  //   };
+
+  //   if (id) fetchCourse();
+  // }, [id]);
+
+
 
   return (
     <>
@@ -351,9 +387,8 @@ const CourseDetail = () => {
                         </p>
                       </div>
                       <FiChevronDown
-                        className={`transition-transform ${
-                          openChapters[chapter.id] ? "rotate-180" : ""
-                        }`}
+                        className={`transition-transform ${openChapters[chapter.id] ? "rotate-180" : ""
+                          }`}
                       />
                     </button>
 
@@ -425,11 +460,10 @@ const CourseDetail = () => {
                         onClick={() =>
                           setReviewForm((prev) => ({ ...prev, rating: star }))
                         }
-                        className={`w-11 h-11 rounded-2xl border flex items-center justify-center ${
-                          reviewForm.rating >= star
-                            ? "bg-orange-50 border-orange-200 text-orange-500"
-                            : "bg-white border-gray-200 text-gray-400"
-                        }`}
+                        className={`w-11 h-11 rounded-2xl border flex items-center justify-center ${reviewForm.rating >= star
+                          ? "bg-orange-50 border-orange-200 text-orange-500"
+                          : "bg-white border-gray-200 text-gray-400"
+                          }`}
                       >
                         <FiStar fill="currentColor" />
                       </button>
@@ -650,11 +684,10 @@ const CourseDetail = () => {
                 <div className="space-y-3 mb-6">
                   <button
                     onClick={() => setPaymentMethod("momo")}
-                    className={`w-full rounded-2xl border px-4 py-3 flex items-center gap-3 text-left ${
-                      paymentMethod === "momo"
-                        ? "border-[#002B5B] bg-blue-50"
-                        : "border-gray-200 bg-white"
-                    }`}
+                    className={`w-full rounded-2xl border px-4 py-3 flex items-center gap-3 text-left ${paymentMethod === "momo"
+                      ? "border-[#002B5B] bg-blue-50"
+                      : "border-gray-200 bg-white"
+                      }`}
                   >
                     <FiCreditCard className="text-[#002B5B]" />
                     <div>
@@ -667,11 +700,10 @@ const CourseDetail = () => {
 
                   <button
                     onClick={() => setPaymentMethod("banking")}
-                    className={`w-full rounded-2xl border px-4 py-3 flex items-center gap-3 text-left ${
-                      paymentMethod === "banking"
-                        ? "border-[#002B5B] bg-blue-50"
-                        : "border-gray-200 bg-white"
-                    }`}
+                    className={`w-full rounded-2xl border px-4 py-3 flex items-center gap-3 text-left ${paymentMethod === "banking"
+                      ? "border-[#002B5B] bg-blue-50"
+                      : "border-gray-200 bg-white"
+                      }`}
                   >
                     <FiCreditCard className="text-[#002B5B]" />
                     <div>

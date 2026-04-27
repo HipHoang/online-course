@@ -9,6 +9,9 @@ class Course(db.Model):
     price = db.Column(db.Float)
     image = db.Column(db.String(255))
     instructor_id = db.Column(db.Integer, db.ForeignKey('users.user_id'))
+    level = db.Column(db.String(50), nullable=True)
+    category = db.Column(db.String(100), nullable=True)
+
 
     # Kết nối với bảng User
     instructor = db.relationship('User', backref='courses')
@@ -21,6 +24,8 @@ class Course(db.Model):
             "description": self.description,
             "price": self.price,
             "image": self.image,
+            "level": self.level,
+            "category": self.category,
             "instructor_id": self.instructor_id,
             "instructor_name": self.instructor.name if self.instructor else "Unknown"
         }

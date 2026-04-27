@@ -1,73 +1,106 @@
-import { mockCourses } from "../data/mockCourses";
-import API from "./authService";
+import apiClient from "../untils/auth";
 
-/**
- * Service khóa học
- * Ưu tiên API thật nếu backend có dữ liệu.
- * Nếu API lỗi hoặc DB đang trống thì fallback sang mock data.
- */
 export const courseService = {
   async getAllCourses() {
     try {
-      const res = await API.get("/courses");
-      const data = res.data?.data || res.data || [];
+      console.log("CALL API getAllCourses");
 
-      if (Array.isArray(data) && data.length > 0) {
-        return data.map((item) => this.normalizeCourse(item));
+      const res = await apiClient.get("/courses/");
+      const raw = res.data;
+
+      console.log("RAW RESPONSE:", raw);
+
+      const courses = raw?.data?.results;
+
+      if (!Array.isArray(courses)) {
+        throw new Error("Invalid course list format");
       }
 
-      return mockCourses;
+      return courses.map((item) => this.normalizeCourse(item));
+
     } catch (error) {
-      console.warn("API getAllCourses lỗi, dùng mock:", error);
-      return mockCourses;
+      console.error("getAllCourses ERROR:", error.response?.data || error);
+      return [];
     }
   },
 
   async createCourse() {
     try {
-      const res = await API.post("/courses");
+      const res = await apiClient.post("/courses");
       const data = res.data?.data || res.data || [];
 
       if (Array.isArray(data) && data.length > 0) {
         return data.map((item) => this.normalizeCourse(item));
       }
 
-      return mockCourses;
+      console.error("API ERROR getAllCourses:", error);
+      return [];
     } catch (error) {
-      console.warn("API getAllCourses lỗi, dùng mock:", error);
-      return mockCourses;
+      console.error("API ERROR getAllCourses:", error);
+      return [];
     }
   },
 
   async getCourseById(id) {
     try {
-      const res = await API.get(`/courses/${id}`);
-      const data = res.data?.data || res.data;
+      console.log("CALL API getCourseById:", id);
 
-      if (data) {
-        return this.normalizeCourse(data);
+      const res = await apiClient.get(`/courses/${id}`);
+      const raw = res.data;
+
+      console.log("RAW DETAIL:", raw);
+
+      const course = raw?.data;
+
+      if (!course) {
+        throw new Error("Course not found");
       }
 
-      return (
-        mockCourses.find((item) => Number(item.id) === Number(id)) || null
-      );
+      return this.normalizeCourse(course);
+
     } catch (error) {
-      console.warn("API getCourseById lỗi, dùng mock:", error);
-      return (
-        mockCourses.find((item) => Number(item.id) === Number(id)) || null
-      );
+      console.error("getCourseById ERROR:", error.response?.data || error);
+      return null;
+    }
+  },
+  async searchCoursesPaged(params) {
+    try {
+      const query = new URLSearchParams();
+
+      Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          query.append(key, value);
+        }
+      });
+
+      const res = await apiClient.get(`/courses/search?${query.toString()}`);
+
+      const raw = res.data?.data;
+
+      return {
+        ...raw,
+        results: (raw?.results || []).map((item) =>
+          this.normalizeCourse(item)
+        ),
+      };
+    } catch (error) {
+      console.error("searchCoursesPaged ERROR:", error);
+      return { results: [] };
     }
   },
 
   normalizeCourse(course) {
     return {
-      id: course.id || course.course_id,
+      id: course.course_id,
       title: course.title || course.name || "Khóa học chưa có tên",
       description: course.description || "Chưa có mô tả khóa học",
-      instructor: course.instructor || "Giảng viên cập nhật sau",
+      instructor: course.instructor_name || course.instructor?.name || "Giảng viên",
       category: course.category || "Khác",
       level: course.level || "Cơ bản",
-      rating: Number(course.rating || 4.5),
+      rating:
+      course.avg_rating !== undefined && course.avg_rating !== null
+        ? Number(course.avg_rating)
+        : 0,
       price: Number(course.price || 0),
       totalChapters:
         Number(course.totalChapters) ||

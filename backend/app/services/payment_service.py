@@ -10,7 +10,7 @@ class PaymentService:
     VNP_URL = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
     VNP_TMN_CODE = "CPY00001"
     VNP_HASH_SECRET = "9756708451313410"
-    VNP_RETURN_URL = "http://127.0.0.1:5000/api/payment/vnpay_return"
+    VNP_RETURN_URL = "http://localhost:5000/api/payment/vnpay_return"
 
     @staticmethod
     def create_payment_url(user_id, course_id, amount, remote_addr):

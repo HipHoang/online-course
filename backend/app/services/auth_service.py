@@ -77,3 +77,14 @@ def verify_google_token(token):
 
     except Exception as e:
         return None, str(e)
+
+def get_user_by_id(user_id):
+    user = User.query.get(user_id)
+    if user:
+        return {
+            "id": user.user_id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role
+        }
+    return None

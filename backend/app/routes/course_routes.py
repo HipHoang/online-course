@@ -1,10 +1,10 @@
 from flask import Blueprint, jsonify, request
-from app.services.course_service import CourseService, get_courses_service, get_course_detail_service, get_course_user, enroll_course_service
+from app.services.course_service import CourseService, get_courses_service, get_course_detail_service, get_course_user, enroll_course_service, check_enrollment_status
 from app.utils.response import success_response, error_response
 from app.models.enrollment import Enrollment
 from app.models.course import Course
 from app.configs.db import db
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
 
 # ✅ Khai báo 1 lần duy nhất
 course_bp = Blueprint('course_bp', __name__)
@@ -16,41 +16,23 @@ course_bp = Blueprint('course_bp', __name__)
 @course_bp.route('/search', methods=['GET'])
 def search():
     try:
-        page = request.args.get('page', 1, type=int)
-        size = min(request.args.get('size', 10, type=int), 50)
-        keyword = request.args.get('q', '').strip()
-        topic = request.args.get('topic', '').strip()
-        min_price = request.args.get('min_price', type=float)
-        max_price = request.args.get('max_price', type=float)
-        rating = request.args.get('rating', type=float)
-        has_review = request.args.get('has_review')
-        is_free = request.args.get('is_free')
-        has_review = True if has_review == 'true' else False if has_review == 'false' else None
-        is_free = True if is_free == 'true' else False if is_free == 'false' else None
-        sort_by = request.args.get('sort_by', 'id')
-        order = request.args.get('order', 'asc')
-
         data = CourseService.search_and_sort_courses(
-            page=page,
-            size=size,
-            keyword=keyword,
-            topic=topic,
-            sort_by=sort_by,
-            order=order,
-            min_price=min_price,
-            max_price=max_price,
-            rating=rating,
-            has_review=has_review,
-            is_free=is_free
+            page=request.args.get('page', 1, type=int),
+            size=min(request.args.get('size', 10, type=int), 50),
+            keyword=request.args.get('q'),
+            category=request.args.get('category'),
+            level=request.args.get('level'),
+            sort_by=request.args.get('sort_by', 'newest'),
+            min_price=request.args.get('min_price', type=float),
+            max_price=request.args.get('max_price', type=float),
+            rating=request.args.get('rating', type=float),
+            is_free=request.args.get('is_free', type=lambda v: v.lower() == 'true' if v else None),
         )
 
-        return success_response(
-            data=data,
-            message=f"Tìm thấy {len(data)} khóa học"
-        )
+        return success_response(data=data)
 
     except Exception as e:
-        return error_response(message=str(e), status_code=500)
+        return error_response(str(e), 500)
 
 
 # =========================
@@ -63,7 +45,7 @@ def get_courses():
         size = min(request.args.get('size', 10, type=int), 50)
 
         keyword = request.args.get('q')
-        topic = request.args.get('topic')
+        category=request.args.get('category')
         sort_by = request.args.get('sort_by', 'id')
         order = request.args.get('order', 'asc')
 
@@ -83,7 +65,7 @@ def get_courses():
             page=page,
             size=size,
             keyword=keyword,
-            topic=topic,
+            category=category,
             sort_by=sort_by,
             order=order,
             min_price=min_price,
@@ -124,16 +106,20 @@ def get_my_courses():
 
     return jsonify(data), 200
 
-@course_bp.route('/enroll', methods=['POST'])
-@jwt_required()
+@course_bp.route('/enroll', methods=['POST', 'OPTIONS'])
+@jwt_required(optional=True)
 def enroll_course():
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     try:
-        data = request.get_json()
-
         user_id = get_jwt_identity()
-        course_id = data.get('course_id')
+        if not user_id:
+            return jsonify({"message": "Token missing or invalid"}), 401
 
-        if not user_id or not course_id:
+        data = request.get_json()
+        course_id = data.get('course_id')
+        if not course_id:
             return jsonify({"message": "Missing data"}), 400
 
         result, status = enroll_course_service(user_id, course_id)
@@ -142,3 +128,47 @@ def enroll_course():
 
     except Exception as e:
         return jsonify({"message": str(e)}), 500
+
+@course_bp.route('/<int:course_id>/check-enrollment', methods=['GET'])
+@jwt_required(optional=True)
+def check_enrollment(course_id):
+    try:
+        user_id = get_jwt_identity()
+        if not user_id:
+            return jsonify({
+                "success": True,
+                "data": {
+                    "isEnrolled": False
+                }
+            }), 200
+        
+        is_enrolled = check_enrollment_status(int(user_id), course_id)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "isEnrolled": is_enrolled
+            }
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+# =========================
+# GET PROGRESS
+# =========================
+@course_bp.route('/progress/<int:course_id>', methods=['GET', 'OPTIONS'])
+def get_learning_progress(course_id):
+    if request.method == 'OPTIONS': return '', 200
+    try:
+        verify_jwt_in_request()
+        user_id = get_jwt_identity()
+    except:
+        return jsonify({'msg': 'Missing token'}), 401
+
+    # 3. Gọi service lấy data
+    result = CourseService.get_progress(user_id, course_id)
+    return jsonify(result), 200

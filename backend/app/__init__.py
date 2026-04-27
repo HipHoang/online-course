@@ -5,7 +5,7 @@ from app.configs.db import db
 from app.configs.settings import Config
 import os
 from flask_jwt_extended import JWTManager
-
+from flask_migrate import Migrate
 from app.routes.post_routes import post_bp
 from app.routes.review_routes import review_bp
 
@@ -13,13 +13,11 @@ from app.routes.review_routes import review_bp
 def create_app():
     app = Flask(__name__)
 
-    # 1. Load cấu hình từ file settings.py hoặc trực tiếp từ .env
-    # Nếu bạn chưa viết settings.py, có thể dùng: app.config.from_prefixed_env()
     app.config.from_object(Config)
-
-    # 2. Cấu hình CORS cho phép React (thường là port 3000) truy cập
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
-
+    migrate = Migrate(app, db)
+    # 2. Cấu hình CORS cho phép React (thường là port 5173) truy cập
+    CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
+    app.url_map.strict_slashes = False
     # 3. Khởi tạo Database
     db.init_app(app)
 
@@ -31,6 +29,7 @@ def create_app():
     from app.routes.user_routes import user_bp
     from app.routes.course_routes import course_bp
     from app.routes.lesson_routes import lesson_bp
+    from app.routes.payment_routes import payment_bp
     # ... Đăng ký thêm các route khác tương tự
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -39,6 +38,7 @@ def create_app():
     app.register_blueprint(lesson_bp, url_prefix='/api/lessons')
     app.register_blueprint(review_bp, url_prefix='/api/reviews')
     app.register_blueprint(post_bp, url_prefix='/api/posts')
+    app.register_blueprint(payment_bp, url_prefix='/api/payment')
 
     @app.route('/')
     def index():

@@ -1,34 +1,18 @@
-import axios from "axios";
-import { getAccessToken } from "../untils/auth";
-
-const API = axios.create({
-  baseURL: "http://localhost:5000/api",
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-API.interceptors.request.use(
-  (config) => {
-    const token = getAccessToken();
-
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+import apiClient from "../untils/auth";
 
 export const loginApi = async (payload) => {
-  const res = await API.post("/auth/login", payload);
+  const res = await apiClient.post("/auth/login", payload);
+  return res.data;
+};
+
+export const verifyTokenApi = async () => {
+  const res = await apiClient.get("/auth/me");
   return res.data;
 };
 
 export const registerApi = async (payload) => {
-  const res = await API.post("/auth/register", payload);
+  const res = await apiClient.post("/auth/register", payload);
   return res.data;
 };
 
-export default API;
+export default apiClient;

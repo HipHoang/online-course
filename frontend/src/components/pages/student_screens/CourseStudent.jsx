@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import axios from "axios";
 import {
   FiBookOpen,
   FiCheckCircle,
@@ -7,7 +8,7 @@ import {
   FiSearch,
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { enrollmentService } from "../../../services/enrollmentService";
+import { getAccessToken } from "../../../untils/auth";
 
 const CourseStudent = () => {
   const navigate = useNavigate();
@@ -18,26 +19,78 @@ const CourseStudent = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const myCourses = enrollmentService.getMyCourses();
-    setCourses(myCourses);
-    setLoading(false);
+    const fetchMyCourses = async () => {
+      try {
+        const token = getAccessToken();
+
+        if (!token) {
+          console.warn("No token found");
+          setCourses([]);
+          return;
+        }
+
+        const res = await axios.get(
+          "http://127.0.0.1:5000/api/courses/my-courses",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        console.log("My courses API:", res.data);
+
+        // Defensive mapping
+        const normalized = (res.data || []).map((c) => ({
+          courseId: c.id,
+          title: c.title || "",
+          image: c.image || "",
+          progress: c.progress_percent || 0,
+          completedLessons: c.completed_lessons || 0,
+          totalLessons: c.total_lessons || 0,
+          status:
+            c.course_status === "completed"
+              ? "Hoàn thành"
+              : c.course_status === "in_progress"
+                ? "Đang học"
+                : "Chưa bắt đầu",
+          category: c.category || "",
+          shortDescription: c.description || "",
+        }));
+
+        setCourses(normalized);
+      } catch (error) {
+        console.error("Fetch my courses error:", error);
+        setCourses([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMyCourses();
   }, []);
 
-  const filteredCourses = courses.filter((course) => {
-    const matchSearch =
-      course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.status.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchTab =
-      activeTab === "all"
-        ? true
-        : activeTab === "learning"
-        ? course.status === "Đang học"
-        : course.status === "Hoàn thành";
+  const filteredCourses = (courses || []).filter((course) => {
+  const title = course.title || "";
+  const category = course.category || "";
+  const status = course.status || "";
 
-    return matchSearch && matchTab;
-  });
+  const matchSearch =
+    title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    status.toLowerCase().includes(searchTerm.toLowerCase());
+
+  const matchTab =
+    activeTab === "all"
+      ? true
+      : activeTab === "learning"
+      ? status === "Đang học"
+      : status === "Hoàn thành";
+
+  return matchSearch && matchTab;
+});
+
 
   if (loading) {
     return (
@@ -82,33 +135,30 @@ const CourseStudent = () => {
       <div className="flex gap-4 border-b border-gray-100 pb-1">
         <button
           onClick={() => setActiveTab("all")}
-          className={`px-4 py-2 text-sm font-semibold transition ${
-            activeTab === "all"
+          className={`px-4 py-2 text-sm font-semibold transition ${activeTab === "all"
               ? "text-[#002B5B] border-b-2 border-[#002B5B]"
               : "text-gray-500 hover:text-[#002B5B]"
-          }`}
+            }`}
         >
           Tất cả
         </button>
 
         <button
           onClick={() => setActiveTab("learning")}
-          className={`px-4 py-2 text-sm font-semibold transition ${
-            activeTab === "learning"
+          className={`px-4 py-2 text-sm font-semibold transition ${activeTab === "learning"
               ? "text-[#002B5B] border-b-2 border-[#002B5B]"
               : "text-gray-500 hover:text-[#002B5B]"
-          }`}
+            }`}
         >
           Đang học
         </button>
 
         <button
           onClick={() => setActiveTab("completed")}
-          className={`px-4 py-2 text-sm font-semibold transition ${
-            activeTab === "completed"
+          className={`px-4 py-2 text-sm font-semibold transition ${activeTab === "completed"
               ? "text-[#002B5B] border-b-2 border-[#002B5B]"
               : "text-gray-500 hover:text-[#002B5B]"
-          }`}
+            }`}
         >
           Hoàn thành
         </button>
@@ -141,7 +191,7 @@ const CourseStudent = () => {
               {/* Image */}
               <div className="relative h-48 overflow-hidden">
                 <img
-                  src={course.image}
+                  src={course.image || "/default-course.jpg"}
                   alt={course.title}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />
@@ -181,7 +231,7 @@ const CourseStudent = () => {
                 </div>
 
                 <p className="text-sm text-slate-500 mb-5 line-clamp-2">
-                  {course.shortDescription}
+                  {(course.shortDescription || "").slice(0, 100)}
                 </p>
 
                 {/* Progress */}
@@ -191,11 +241,10 @@ const CourseStudent = () => {
                       Tiến độ
                     </span>
                     <span
-                      className={`font-bold ${
-                        course.progress === 100
+                      className={`font-bold ${course.progress === 100
                           ? "text-green-600"
                           : "text-[#002B5B]"
-                      }`}
+                        }`}
                     >
                       {course.progress}%
                     </span>
@@ -203,11 +252,10 @@ const CourseStudent = () => {
 
                   <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                     <div
-                      className={`h-full transition-all duration-700 ${
-                        course.progress === 100
+                      className={`h-full transition-all duration-700 ${course.progress === 100
                           ? "bg-green-500"
                           : "bg-[#002B5B]"
-                      }`}
+                        }`}
                       style={{ width: `${course.progress}%` }}
                     ></div>
                   </div>
@@ -216,11 +264,10 @@ const CourseStudent = () => {
                 {/* Footer */}
                 <div className="flex items-center justify-between">
                   <span
-                    className={`text-sm font-semibold ${
-                      course.status === "Hoàn thành"
+                    className={`text-sm font-semibold ${course.status === "Hoàn thành"
                         ? "text-green-600"
                         : "text-slate-500"
-                    }`}
+                      }`}
                   >
                     {course.status}
                   </span>
@@ -230,11 +277,10 @@ const CourseStudent = () => {
                       e.stopPropagation();
                       navigate(`/learn/${course.courseId}`);
                     }}
-                    className={`px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 transition ${
-                      course.progress === 100
+                    className={`px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 transition ${course.progress === 100
                         ? "bg-green-50 text-green-600 hover:bg-green-100"
                         : "bg-[#002B5B] text-white hover:bg-[#001E3C]"
-                    }`}
+                      }`}
                   >
                     {course.progress === 100 ? (
                       "Xem lại"

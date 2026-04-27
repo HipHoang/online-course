@@ -1,10 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AuthModal from "../auth/AuthModal";
-import { courseService } from "../../services/courseService";
-import { getCurrentUser, clearStoredAuth, isTeacherRole } from "../../untils/auth";
-
-
+import { isTeacherRole } from "../../untils/auth";
+import { useAuth } from "../../context/AuthProvider";
 
 const Header = () => {
   const navigate = useNavigate();
@@ -13,17 +11,20 @@ const Header = () => {
   const [authType, setAuthType] = useState("login");
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [results, setResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [showResults, setShowResults] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  const searchRef = useRef(null);
   const userMenuRef = useRef(null);
 
-  const user = getCurrentUser();
+  const { user, clearStoredAuth } = useAuth();
+
   const role = user?.role;
   const isTeacher = isTeacherRole(role);
+
+  const handleSearch = (value) => {
+    const keyword = value?.trim();
+    if (!keyword) return;
+    navigate(`/all-courses?q=${encodeURIComponent(keyword)}`);
+  };
 
   useEffect(() => {
     const handleOpenAuthModal = (event) => {
@@ -33,18 +34,11 @@ const Header = () => {
     };
 
     window.addEventListener("openAuthModal", handleOpenAuthModal);
-
-    return () => {
-      window.removeEventListener("openAuthModal", handleOpenAuthModal);
-    };
+    return () => window.removeEventListener("openAuthModal", handleOpenAuthModal);
   }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (searchRef.current && !searchRef.current.contains(event.target)) {
-        setShowResults(false);
-      }
-
       if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
         setShowUserMenu(false);
       }
@@ -54,39 +48,11 @@ const Header = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    if (!searchTerm.trim()) {
-      setResults([]);
-      setIsSearching(false);
-      return;
-    }
-
-    setIsSearching(true);
-    setShowResults(true);
-
-    const delayDebounceFn = setTimeout(async () => {
-      try {
-        const data = await courseService.searchCourses({
-          q: searchTerm,
-          sort_by: "id",
-          order: "asc",
-        });
-        setResults(data);
-      } catch (error) {
-        console.error("Lỗi tìm kiếm khóa học:", error);
-        setResults([]);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 400);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm]);
-
   const handleLogout = () => {
     clearStoredAuth();
     window.location.href = "/";
   };
+
   const displayName = user?.name || user?.fullName || "Người dùng";
   const avatarText = displayName.trim().charAt(0).toUpperCase() || "U";
 
@@ -119,7 +85,7 @@ const Header = () => {
           </div>
         </div>
 
-        <div className="flex-1 max-w-2xl mx-6 relative" ref={searchRef}>
+        <div className="flex-1 max-w-2xl mx-6 relative">
           <div className="relative group">
             <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400">
               <svg
@@ -142,82 +108,26 @@ const Header = () => {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              onFocus={() => searchTerm && setShowResults(true)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && results.length > 0) {
-                  setShowResults(false);
-                  navigate(`/courses/${results[0].id}`);
-                  setSearchTerm("");
+                if (e.key === "Enter") {
+                  handleSearch(searchTerm);
                 }
               }}
               placeholder={
                 isTeacher
                   ? "Tìm kiếm học viên, khóa học..."
-                  : "Tìm kiếm khóa học, bài viết..."
+                  : "Tìm kiếm khóa học..."
               }
-              className="w-full py-3 pl-14 pr-4 bg-[#F0F2F5] border border-transparent rounded-full focus:bg-white focus:border-[#002B5B] focus:ring-1 focus:ring-[#002B5B] outline-none transition-all text-base"
+              className="w-full py-3 pl-14 pr-14 bg-[#F0F2F5] border border-transparent rounded-full focus:bg-white focus:border-[#002B5B] focus:ring-1 focus:ring-[#002B5B] outline-none transition-all text-base"
             />
 
-            {isSearching && (
-              <span className="absolute inset-y-0 right-4 flex items-center">
-                <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              </span>
-            )}
+            <button
+              onClick={() => handleSearch(searchTerm)}
+              className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-500 hover:text-blue-600"
+            >
+              🔍
+            </button>
           </div>
-
-          {showResults && searchTerm && (
-            <div className="absolute top-full mt-2 w-full bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden z-50">
-              {isSearching ? (
-                <div className="p-4 text-gray-500 text-center">
-                  Đang tìm kiếm...
-                </div>
-              ) : results.length > 0 ? (
-                <ul>
-                  {results.map((item) => (
-                    <li
-                      key={item.id}
-                      onClick={() => {
-                        setShowResults(false);
-                        setSearchTerm("");
-                        navigate(`/courses/${item.id}`);
-                      }}
-                      className="px-6 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center group transition-colors"
-                    >
-                      <div>
-                        <p className="font-semibold text-gray-800 group-hover:text-blue-600">
-                          {item.title}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {item.topic ||
-                            item.category ||
-                            item.description ||
-                            "Khóa học"}
-                        </p>
-                      </div>
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4 text-gray-300"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={3}
-                          d="M9 5l7 7-7 7"
-                        />
-                      </svg>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="p-4 text-gray-500 text-center">
-                  Không tìm thấy kết quả cho "{searchTerm}"
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {!user ? (
@@ -281,8 +191,9 @@ const Header = () => {
 
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className={`h-5 w-5 text-gray-500 transition-transform ${showUserMenu ? "rotate-180" : ""
-                    }`}
+                  className={`h-5 w-5 text-gray-500 transition-transform ${
+                    showUserMenu ? "rotate-180" : ""
+                  }`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"

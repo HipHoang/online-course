@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FiChevronRight, FiPlay, FiStar } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { enrollmentService } from "../../../services/enrollmentService";
 import { courseService } from "../../../services/courseService";
 import bannerImg from "../../../assets/Avt1.jpg";
 
@@ -25,8 +24,8 @@ const UserCourseCard = ({ course, onClick }) => (
     <div className="h-32 bg-slate-50 relative flex items-center justify-center overflow-hidden">
       {course.image ? (
         <img
-          src={course.image}
-          alt={course.title}
+          src={course.image || ""}
+          alt={course.title || ""}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
       ) : (
@@ -43,7 +42,7 @@ const UserCourseCard = ({ course, onClick }) => (
 
     <div className="p-5">
       <h4 className="font-bold text-sm mb-1 group-hover:text-[#013396] transition-colors line-clamp-2 min-h-10">
-        {course.title}
+        {course.title || ""}
       </h4>
       <p className="text-xs text-gray-400 mb-4">{course.instructor}</p>
 
@@ -111,7 +110,7 @@ const GuestHome = () => {
     return allCourses;
   }, [courses, activeTab]);
 
-  const displayedFeaturedCourses = featuredCourses.slice(0, 4);
+  const displayedFeaturedCourses = (featuredCourses || []).slice(0, 4);
 
   const popularTopics = useMemo(() => {
     const categoryMap = new Map();
@@ -304,9 +303,9 @@ const UserDashboard = ({ currentUser }) => {
   const [loadingCourses, setLoadingCourses] = useState(true);
 
   useEffect(() => {
-    const enrolled = enrollmentService.getMyCourses();
-    setMyCourses(enrolled);
-  }, []);
+  // TODO: sau này thay bằng API getMyCourses
+  setMyCourses([]); // tránh crash
+}, []);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -338,10 +337,10 @@ const UserDashboard = ({ currentUser }) => {
   }, [courses, activeTab]);
 
   const displayedFeaturedCourses = featuredCourses.slice(0, 4);
-  const continueLearningCourses = myCourses.filter(
-    (course) => Number(course.progress) < 100
-  );
-  const roadmapCourses = myCourses.slice(0, 2);
+  const continueLearningCourses = (myCourses || []).filter(
+  (course) => Number(course?.progress || 0) < 100
+);
+  const roadmapCourses = (myCourses || []).slice(0, 2);
 
   const averageProgress = myCourses.length
     ? Math.round(
@@ -465,7 +464,7 @@ const UserDashboard = ({ currentUser }) => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {continueLearningCourses.slice(0, 2).map((course) => (
+              {(continueLearningCourses || []).slice(0, 2).map((course) => (
                 <div
                   key={course.courseId}
                   className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center gap-4 shadow-sm cursor-pointer hover:shadow-md transition"
@@ -479,7 +478,7 @@ const UserDashboard = ({ currentUser }) => {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      course.title.slice(0, 2).toUpperCase()
+                      (course.title || "").slice(0, 2).toUpperCase()
                     )}
                   </div>
 
@@ -534,7 +533,7 @@ const UserDashboard = ({ currentUser }) => {
             <div className="flex justify-between">
               <span className="text-gray-500">Đang học</span>
               <span className="font-semibold">
-                {myCourses.filter((c) => c.status === "Đang học").length}
+                {(myCourses || []).filter((c) => c?.status === "Đang học")}
               </span>
             </div>
             <div className="flex justify-between">

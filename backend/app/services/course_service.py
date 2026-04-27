@@ -1,16 +1,27 @@
 # app/services/course_service.py
-from calendar import c
-
 from app.models import Course, Enrollment, CourseProgress, Lesson, Review
 from sqlalchemy import asc, desc, func
 from app.configs.db import db
 
 class CourseService:
     @staticmethod
-    def search_and_sort_courses(page=1, size=10,keyword=None, topic=None, sort_by='id', order='asc', min_price=None, max_price=None, rating=None, has_review=None, is_free=None):
-
+    def search_and_sort_courses(
+        page=1,
+        size=10,
+        keyword=None,
+        category=None,
+        level=None,
+        sort_by='newest',
+        min_price=None,
+        max_price=None,
+        rating=None,
+        is_free=None,
+        order=None,
+        **kwargs
+    ):
         avg_rating = func.avg(Review.rating).label("avg_rating")
         total_reviews = func.count(func.distinct(Review.review_id)).label("total_reviews")
+
         query = db.session.query(
             Course,
             avg_rating,
@@ -18,56 +29,49 @@ class CourseService:
         ).outerjoin(Review, Course.course_id == Review.course_id)
 
         query = query.group_by(Course.course_id)
-        # 1. Lọc theo từ khóa (Tiêu đề hoặc Mô tả)
+        keyword = kwargs.get('q', keyword)
+        # SEARCH
         if keyword:
             query = query.filter(
                 (Course.title.ilike(f'%{keyword}%')) |
                 (Course.description.ilike(f'%{keyword}%'))
             )
 
-        # 2. Lọc theo chủ đề (Dựa trên tiêu đề)
-        if topic:
-            query = query.filter(Course.title.ilike(f'%{topic}%'))
-        # 3. Price range
+        # CATEGORY
+        if category:
+            query = query.filter(Course.category.ilike(f'%{category}%'))
+
+        # LEVEL
+        if level:
+            query = query.filter(Course.level == level)
+
+        # PRICE
         if min_price is not None:
             query = query.filter(Course.price >= min_price)
 
         if max_price is not None:
             query = query.filter(Course.price <= max_price)
 
-        # 4. Free / Pro
         if is_free is True:
             query = query.filter(Course.price == 0)
         elif is_free is False:
             query = query.filter(Course.price > 0)
 
-        having_conditions = []
-
+        # RATING
         if rating is not None:
-            having_conditions.append(avg_rating >= rating)
+            query = query.having(avg_rating >= rating)
 
-        if has_review:
-            having_conditions.append(total_reviews > 0)
+        # SORT
+        if sort_by == "price_asc":
+            query = query.order_by(asc(Course.price))
+        elif sort_by == "price_desc":
+            query = query.order_by(desc(Course.price))
+        elif sort_by == "most_popular":
+            query = query.order_by(desc(total_reviews))
+        else:  # newest
+            query = query.order_by(desc(Course.course_id))
 
-        if having_conditions:
-            query = query.having(*having_conditions)
-
-        # 6. Sort
-        sort_map = {
-            'name': Course.title,
-            'price': Course.price,
-            'id': Course.course_id,
-            'rating': avg_rating,
-            'reviews': total_reviews
-        }
-
-        column = sort_map.get(sort_by, Course.course_id)
-
-        if order == 'desc':
-            query = query.order_by(desc(column))
-        else:
-            query = query.order_by(asc(column))
-
+        # PAGINATION
         total = query.count()
         offset = (page - 1) * size
         courses = query.offset(offset).limit(size).all()
@@ -76,7 +80,6 @@ class CourseService:
             "page": page,
             "size": size,
             "total": total,
-            "total_pages": (total + size - 1) // size,
             "results": [
                 {
                     **course.to_dict(),
@@ -87,19 +90,114 @@ class CourseService:
             ]
         }
 
+    @staticmethod
+    def get_progress(student_id, course_id):
+        progress = CourseProgress.query.filter_by(
+            student_id=student_id,
+            course_id=course_id
+        ).first()
+
+        if not progress:
+            return {
+                "progress": 0,
+                "completedLessons": 0,
+                "currentLessonId": None
+            }
+
+        return {
+            "progress": progress.progress_percent,
+            "completedLessons": progress.completed_lessons,
+            "currentLessonId": None
+        }
+
+        avg_rating = func.avg(Review.rating).label("avg_rating")
+        total_reviews = func.count(func.distinct(Review.review_id)).label("total_reviews")
+
+        query = db.session.query(
+            Course,
+            avg_rating,
+            total_reviews
+        ).outerjoin(Review, Course.course_id == Review.course_id)
+
+        query = query.group_by(Course.course_id)
+        keyword = kwargs.get('q', keyword)
+        # SEARCH
+        if keyword:
+            query = query.filter(
+                (Course.title.ilike(f'%{keyword}%')) |
+                (Course.description.ilike(f'%{keyword}%'))
+            )
+
+        # CATEGORY
+        if category:
+            query = query.filter(Course.category.ilike(f'%{category}%'))
+
+        # LEVEL
+        if level:
+            query = query.filter(Course.level == level)
+
+        # PRICE
+        if min_price is not None:
+            query = query.filter(Course.price >= min_price)
+
+        if max_price is not None:
+            query = query.filter(Course.price <= max_price)
+
+        if is_free is True:
+            query = query.filter(Course.price == 0)
+        elif is_free is False:
+            query = query.filter(Course.price > 0)
+
+        # RATING
+        if rating is not None:
+            query = query.having(avg_rating >= rating)
+
+        # SORT
+        if sort_by == "price_asc":
+            query = query.order_by(asc(Course.price))
+        elif sort_by == "price_desc":
+            query = query.order_by(desc(Course.price))
+        elif sort_by == "most_popular":
+            query = query.order_by(desc(total_reviews))
+        else:  # newest
+            query = query.order_by(desc(Course.course_id))
+
+        # PAGINATION
+        total = query.count()
+        offset = (page - 1) * size
+        courses = query.offset(offset).limit(size).all()
+
+        return {
+            "page": page,
+            "size": size,
+            "total": total,
+            "results": [
+                {
+                    **course.to_dict(),
+                    "avg_rating": round(avg, 1) if avg else 0,
+                    "total_reviews": count
+                }
+                for course, avg, count in courses
+            ]
+        }
+
+
 def get_courses_service(page=1, size=10, keyword=None, sort='id'):
     query = db.session.query(
         Course,
         func.avg(Review.rating).label("avg_rating"),
         func.count(Review.review_id).label("total_reviews")
     ).outerjoin(Review, Course.course_id == Review.course_id)
+    
     # Search
     if keyword:
         query = query.filter(Course.title.contains(keyword))
+    
     # Sort
     if hasattr(Course, sort):
         query = query.order_by(getattr(Course, sort))
-    # record
+    
+    # Pagination logic
     total = query.count()
     courses = query.offset((page - 1) * size).limit(size).all()
 
@@ -121,7 +219,6 @@ def get_courses_service(page=1, size=10, keyword=None, sort='id'):
 
 def get_course_detail_service(course_id):
     course = Course.query.get(course_id)
-
     if not course:
         return None
 
@@ -136,10 +233,8 @@ def get_course_detail_service(course_id):
         "description": course.description,
         "price": course.price,
         "image": course.image,
-
         "avg_rating": round(avg, 1) if avg else 0,
         "total_reviews": count,
-
         "instructor": {
             "id": course.instructor_id,
             "name": course.instructor.name if course.instructor else "Unknown"
@@ -162,14 +257,13 @@ def get_course_detail_service(course_id):
         ]
     }
 
+
 def get_course_user(user_id):
     enrollments = Enrollment.query.filter_by(user_id=user_id).all()
-
     result = []
 
     for enroll in enrollments:
         course = enroll.course
-
         progress = CourseProgress.query.filter_by(
             student_id=user_id,
             course_id=course.course_id
@@ -180,8 +274,6 @@ def get_course_user(user_id):
             "title": course.title,
             "description": course.description,
             "image": course.image,
-            "status": progress.status,
-
             "progress_percent": progress.progress_percent if progress else 0,
             "completed_lessons": progress.completed_lessons if progress else 0,
             "total_lessons": progress.total_lessons if progress else 0,
@@ -191,13 +283,14 @@ def get_course_user(user_id):
     return result
 
 def enroll_course_service(user_id, course_id):
+    print("Enroll request:", user_id, course_id)
     existing = Enrollment.query.filter_by(
         user_id=user_id,
         course_id=course_id
     ).first()
 
     if existing:
-        return {"error": "Already enrolled"}, 400
+        return {"message": "Already enrolled"}, 200
 
     new_enroll = Enrollment(
         user_id=user_id,
@@ -217,7 +310,14 @@ def enroll_course_service(user_id, course_id):
         status="not_started"
     )
     db.session.add(new_progress)
-
     db.session.commit()
 
     return {"message": "Enroll success"}, 200
+
+def check_enrollment_status(user_id, course_id):
+    enrollment = Enrollment.query.filter_by(
+        user_id=user_id,
+        course_id=course_id
+    ).first()
+
+    return enrollment is not None

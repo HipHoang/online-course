@@ -1,11 +1,5 @@
 import { storageService } from "./storageService";
 
-/**
- * MOCK payment service
- * Sau này chỉ cần thay phần createPayment / getMyPayments bằng API thật:
- * - POST /payments
- * - GET /payments/my-payments
- */
 const KEY = "payments";
 
 export const paymentService = {
