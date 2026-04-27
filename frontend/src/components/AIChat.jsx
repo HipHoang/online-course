@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import apiClient from "../untils/auth";
+import { getCurrentUser, getCurrentUserId } from "../untils/auth";
+import {
+  saveMessageToFirestore,
+  subscribeToMessages,
+} from "../services/firebaseChatService";
 
 export default function AIChat() {
   const [messages, setMessages] = useState([]);
@@ -7,19 +12,35 @@ export default function AIChat() {
   const [loading, setLoading] = useState(false);
 
   const chatRef = useRef(null);
+  const user = getCurrentUser();
+  const userId = getCurrentUserId();
+  const conversationId = userId ? `ai-chat-${userId}` : "ai-chat-guest";
+  const userRole = user?.role === "GiangVien" || user?.role === "GV" ? "teacher" : "student";
 
-  // 🔥 kiểm tra có đang gần cuối không
+  // Subscribe to Firestore realtime messages (single source of truth)
+  useEffect(() => {
+    const unsubscribe = subscribeToMessages(conversationId, (firestoreMsgs) => {
+      const formatted = firestoreMsgs.map((m) => ({
+        role: m.role === "ai" ? "ai" : "user",
+        text: m.text,
+        id: m.id,
+        senderId: m.senderId,
+      }));
+      setMessages(formatted);
+    });
+    return () => unsubscribe();
+  }, [conversationId]);
+
+  // Auto scroll
   const isNearBottom = () => {
     const el = chatRef.current;
     if (!el) return true;
     return el.scrollHeight - el.scrollTop - el.clientHeight < 100;
   };
 
-  // 🔥 auto scroll CHỈ trong khung chat
   useEffect(() => {
     const el = chatRef.current;
     if (!el) return;
-
     if (isNearBottom()) {
       el.scrollTo({
         top: el.scrollHeight,
@@ -31,14 +52,24 @@ export default function AIChat() {
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
-    const userMsg = { role: "user", text: input };
-    setMessages((prev) => [...prev, userMsg]);
+    const text = input.trim();
     setInput("");
     setLoading(true);
 
+    // Save user message to Firestore (onSnapshot will update UI)
+    try {
+      await saveMessageToFirestore(conversationId, {
+        senderId: userId || "guest",
+        role: userRole,
+        text: text,
+      });
+    } catch (err) {
+      console.error("Firestore save error:", err);
+    }
+
     try {
       const res = await apiClient.post("/ai/chat", {
-        message: userMsg.text,
+        message: text,
       });
 
       const reply =
@@ -46,15 +77,28 @@ export default function AIChat() {
         res?.data?.data?.reply ||
         "No response from AI";
 
-      const aiMsg = { role: "ai", text: reply };
-
-      setMessages((prev) => [...prev, aiMsg]);
+      // Save AI reply to Firestore (onSnapshot will update UI)
+      try {
+        await saveMessageToFirestore(conversationId, {
+          senderId: "ai",
+          role: "ai",
+          text: reply,
+        });
+      } catch (err) {
+        console.error("Firestore AI save error:", err);
+      }
     } catch (err) {
       console.error(err);
-      setMessages((prev) => [
-        ...prev,
-        { role: "ai", text: "Lỗi khi gọi AI API." },
-      ]);
+      const errorText = "Lỗi khi gọi AI API.";
+      try {
+        await saveMessageToFirestore(conversationId, {
+          senderId: "ai",
+          role: "ai",
+          text: errorText,
+        });
+      } catch (saveErr) {
+        console.error("Firestore error save error:", saveErr);
+      }
     } finally {
       setLoading(false);
     }
@@ -93,9 +137,9 @@ export default function AIChat() {
           </div>
         )}
 
-        {messages.map((m, i) => (
+        {messages.map((m) => (
           <div
-            key={i}
+            key={m.id || `${m.role}-${m.text}`}
             className={`flex items-end gap-2 ${
               m.role === "user" ? "justify-end" : "justify-start"
             }`}
@@ -161,3 +205,4 @@ export default function AIChat() {
     </div>
   );
 }
+

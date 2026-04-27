@@ -32,6 +32,7 @@ def create_app():
     from app.routes.lesson_routes import lesson_bp
     from app.routes.payment_routes import payment_bp
     from app.routes.ai_routes import ai_bp
+    from app.routes.chat_routes import chat_bp
     # ... Đăng ký thêm các route khác tương tự
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -42,6 +43,7 @@ def create_app():
     app.register_blueprint(post_bp, url_prefix='/api/posts')
     app.register_blueprint(payment_bp, url_prefix='/api/payment')
     app.register_blueprint(ai_bp, url_prefix='/api/ai')
+    app.register_blueprint(chat_bp, url_prefix='/api/chat')
 
 
     @app.route('/')
