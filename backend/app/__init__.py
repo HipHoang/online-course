@@ -8,6 +8,7 @@ from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
 from app.routes.post_routes import post_bp
 from app.routes.review_routes import review_bp
+from app.routes.ai_routes import ai_bp
 
 
 def create_app():
@@ -30,6 +31,7 @@ def create_app():
     from app.routes.course_routes import course_bp
     from app.routes.lesson_routes import lesson_bp
     from app.routes.payment_routes import payment_bp
+    from app.routes.ai_routes import ai_bp
     # ... Đăng ký thêm các route khác tương tự
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -39,6 +41,8 @@ def create_app():
     app.register_blueprint(review_bp, url_prefix='/api/reviews')
     app.register_blueprint(post_bp, url_prefix='/api/posts')
     app.register_blueprint(payment_bp, url_prefix='/api/payment')
+    app.register_blueprint(ai_bp, url_prefix='/api/ai')
+
 
     @app.route('/')
     def index():

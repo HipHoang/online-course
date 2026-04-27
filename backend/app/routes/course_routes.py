@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from app.services.course_service import CourseService, get_courses_service, get_course_detail_service, get_course_user, enroll_course_service, check_enrollment_status
+from app.services.course_service import CourseService, get_courses_service, get_course_detail_service, get_course_user, enroll_course_service, check_enrollment_status, get_teacher_courses, get_teacher_stats
 from app.utils.response import success_response, error_response
 from app.models.enrollment import Enrollment
 from app.models.course import Course
@@ -30,6 +30,40 @@ def search():
         )
 
         return success_response(data=data)
+
+    except Exception as e:
+        return error_response(str(e), 500)
+
+# =========================
+# GET TEACHER COURSES
+# =========================
+@course_bp.route('/instructor', methods=['GET'])
+@jwt_required()
+def get_instructor_courses():
+    try:
+        user_id = get_jwt_identity()
+        if not user_id:
+            return error_response("Chưa đăng nhập", 401)
+
+        data = get_teacher_courses(int(user_id))
+        return success_response(data, "Lấy danh sách khóa học của giảng viên thành công", 200)
+
+    except Exception as e:
+        return error_response(str(e), 500)
+
+# =========================
+# GET TEACHER STATS
+# =========================
+@course_bp.route('/instructor/stats', methods=['GET'])
+@jwt_required()
+def get_instructor_stats():
+    try:
+        user_id = get_jwt_identity()
+        if not user_id:
+            return error_response("Chưa đăng nhập", 401)
+
+        data = get_teacher_stats(int(user_id))
+        return success_response(data, "Lấy thống kê giảng viên thành công", 200)
 
     except Exception as e:
         return error_response(str(e), 500)
@@ -172,3 +206,29 @@ def get_learning_progress(course_id):
     # 3. Gọi service lấy data
     result = CourseService.get_progress(user_id, course_id)
     return jsonify(result), 200
+
+# =========================
+# ADD NEW COURSE
+# =========================
+@course_bp.route("/", methods=["POST", "OPTIONS"])
+@jwt_required()
+def add_course():
+    if request.method == "OPTIONS":
+        return "", 200
+
+    try:
+        instructor_id = get_jwt_identity()
+        if not instructor_id:
+            return error_response("Chưa đăng nhập", 401)
+
+        # Lấy dữ liệu từ form-data (bao gồm cả file ảnh)
+        data = request.form.to_dict()
+        image_file = request.files.get("image")
+
+        # Bổ sung instructor_id từ JWT
+
+        new_course = CourseService.add_new_course(instructor_id, data, image_file)
+        return success_response(new_course.to_dict(), "Tạo khóa học thành công", 201)
+
+    except Exception as e:
+        return error_response(str(e), 500)

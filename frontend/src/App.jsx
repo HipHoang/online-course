@@ -12,12 +12,15 @@ import PaymentFailed from "./components/pages/student_screens/PaymentFailed";
 import TeacherDashboard from "./components/pages/teacher_screens/TeacherDashboard";
 import CourseTeacher from "./components/pages/teacher_screens/CourseTeacher";
 import TeacherProfile from "./components/pages/teacher_screens/TeacherProfile";
+import AIChat from "./components/AIChat";
 
 function App() {
   return (
     <BrowserRouter>
       <Layout>
         <Routes>
+
+          <Route path="/ai" element={<AIChat />} />
           {/* student / public */}
           <Route path="/" element={<HomeStudent />} />
           <Route path="/courses" element={<CourseStudent />} />

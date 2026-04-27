@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { FiLayers, FiTag, FiUploadCloud, FiX } from "react-icons/fi";
-import API from "../../../services/authService";
+import { courseService } from "../../../services/courseService";
 import { getAccessToken, getCurrentUserId } from "../../../untils/auth";
 const SelectField = ({ label, icon, name, options, onChange, value }) => (
     <div className="space-y-3">
@@ -37,24 +37,18 @@ const SelectField = ({ label, icon, name, options, onChange, value }) => (
 const CreateCourseForm = ({ onClose }) => {
     const [formData, setFormData] = useState({
         title: "",
-        category_id: "",
+        category: "",
         level: "BEGINNER",
         price: 0,
-        discount_price: 0,
-        is_free: false,
-        language: "Vietnamese",
-        short_description: "",
         description: "",
-        requirements: "",
-        learning_outcomes: "",
     });
     const categoriesList = [
         { value: "", label: "Chọn danh mục" },
-        { value: "1", label: "Lập trình Web" },
-        { value: "2", label: "Thiết kế UI/UX" },
-        { value: "3", label: "Data Science" },
-        { value: "4", label: "Mobile App" },
-        { value: "5", label: "Blockchain" },
+        { value: "Lập trình Web", label: "Lập trình Web" },
+        { value: "Thiết kế UI/UX", label: "Thiết kế UI/UX" },
+        { value: "Data Science", label: "Data Science" },
+        { value: "Mobile App", label: "Mobile App" },
+        { value: "Blockchain", label: "Blockchain" },
     ];
 
     const levelsList = [
@@ -86,47 +80,34 @@ const CreateCourseForm = ({ onClose }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-    
-        // 1. Lấy Token và User ID từ Helper
-        const token = getAccessToken();
-        const userId = getCurrentUserId();
-    
-        if (!token || !userId) {
-            alert("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại!");
-            return;
-        }
-    
-        // 2. Tạo đối tượng FormData (Bắt buộc để gửi file)
+
+        // 1. Tạo đối tượng FormData (Bắt buộc để gửi file)
         const data = new FormData();
-    
-        // Đẩy các trường text từ formData state vào
-        // Lưu ý: Tín gán đè instructor_id lấy từ hệ thống để đảm bảo chính xác
-        Object.keys(formData).forEach((key) => {
-            data.append(key, formData[key]);
-        });
-        
-        data.set("instructor_id", userId); 
+
+        // 2. Xử lý giá: nếu is_free thì price = 0
+        const finalPrice = formData.is_free ? 0 : Number(formData.price || 0);
+
+        // 3. Chỉ append các trường DB thực sự cần (không gửi discount_price, is_free, short_description)
+        data.append("title", formData.title);
+        data.append("description", formData.description || "");
+        data.append("price", finalPrice);
+        data.append("level", formData.level || "BEGINNER");
+        data.append("category", formData.category || "");
 
         if (imageFile) {
             data.append("image", imageFile);
         }
-    
+
         try {
-            
-            const res = await API.post("/courses/", data, {
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                    "Authorization": `Bearer ${token}`,
-                },
-            });
-    
-            if (res.status === 201 || res.status === 200) {
+            const res = await courseService.createCourse(data);
+
+            if (res) {
                 alert("Tạo khóa học thành công!");
-                onClose(); 
+                onClose();
             }
         } catch (error) {
-            console.error("Lỗi khi tạo khóa học:", error.response?.data || error.message);
-            alert(error.response?.data?.message || "Có lỗi xảy ra khi tạo khóa học!");
+            console.error("Lỗi khi tạo khóa học:", error);
+            alert(error.message || "Có lỗi xảy ra khi tạo khóa học!");
         }
     };
 
@@ -171,8 +152,8 @@ const CreateCourseForm = ({ onClose }) => {
                         <SelectField
                             label="Danh mục"
                             icon={<FiLayers className="text-blue-500" />}
-                            name="category_id"
-                            value={formData.category_id}
+                            name="category"
+                            value={formData.category}
                             onChange={handleChange}
                             options={categoriesList}
                         />

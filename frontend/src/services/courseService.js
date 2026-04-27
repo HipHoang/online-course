@@ -24,20 +24,17 @@ export const courseService = {
     }
   },
 
-  async createCourse() {
+    async createCourse(courseData) {
     try {
-      const res = await apiClient.post("/courses");
-      const data = res.data?.data || res.data || [];
-
-      if (Array.isArray(data) && data.length > 0) {
-        return data.map((item) => this.normalizeCourse(item));
-      }
-
-      console.error("API ERROR getAllCourses:", error);
-      return [];
+      const res = await apiClient.post("/courses/", courseData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      return res.data; // Trả về toàn bộ response data
     } catch (error) {
-      console.error("API ERROR getAllCourses:", error);
-      return [];
+      console.error("createCourse ERROR:", error.response?.data || error);
+      throw error; // Ném lỗi để xử lý ở component
     }
   },
 

@@ -22,3 +22,6 @@ class Config:
 
     # CORS
     FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+
+    # Gemini
+    GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
