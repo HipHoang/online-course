@@ -1,0 +1,330 @@
+# ==============================
+# GLOBAL RULES
+# ==============================
+
+- NEVER scan the entire project
+- ONLY modify files explicitly mentioned in the prompt
+- DO NOT create unnecessary files
+- DO NOT refactor unrelated code
+- DO NOT change project structure
+- ALWAYS preserve existing working logic
+
+- ALWAYS return minimal code changes
+- NEVER explain unless explicitly asked
+- PRIORITIZE fixing bugs over rewriting code
+
+---
+
+# ==============================
+# PROJECT CONTEXT
+# ==============================
+
+This is a fullstack project:
+
+BACKEND:
+- Flask (Python)
+- SQLAlchemy
+- MySQL
+- REST API
+
+FRONTEND:
+- ReactJS
+- Axios for API calls
+
+REALTIME:
+- Firebase Firestore
+
+AI:
+- Gemini API (google.genai)
+
+USER MODEL:
+- User has role:
+    - isTeacher = true → teacher
+    - isTeacher = false → student
+
+---
+
+# ==============================
+# AI SYSTEM RULES
+# ==============================
+
+- AI MUST NEVER crash
+- AI MUST ALWAYS return a string
+- If AI fails → use fallback_reply()
+
+- ALWAYS wrap AI call in try/catch
+- HANDLE:
+    - 503 errors (overload)
+    - 429 errors (quota)
+    - invalid model errors
+
+---
+
+# ==============================
+# LEVEL 2 AI (COURSE RECOMMENDATION)
+# ==============================
+
+- ALWAYS search database BEFORE calling AI
+
+Function required:
+
+search_courses(keyword)
+
+Rules:
+- Search BOTH:
+    - Course.title
+    - Course.description
+- Use ilike (case-insensitive)
+- Limit 5 results
+
+---
+
+# IMPORTANT:
+
+If no courses found:
+→ MUST fallback to default courses
+
+Example:
+courses = Course.query.limit(5).all()
+
+---
+
+# ==============================
+# AI PROMPT RULES
+# ==============================
+
+Prompt MUST include:
+
+1. Chat history (last 5 messages)
+2. Course data from DB
+3. User question
+
+---
+
+Prompt behavior rules:
+
+- ALWAYS suggest courses if possible
+- If no exact match → suggest general courses
+- NEVER say "no courses available"
+- Keep answer natural and helpful
+
+---
+
+# ==============================
+# FALLBACK AI (MANDATORY)
+# ==============================
+
+Function:
+
+fallback_reply(message)
+
+Rules:
+
+- If message contains:
+    "khóa", "course"
+    → suggest browsing courses page
+
+- If message contains:
+    "giá", "price"
+    → tell user to check course price
+
+- Default:
+    → "AI đang bận, vui lòng thử lại sau."
+
+---
+
+# ==============================
+# CHAT HISTORY (AI ↔ USER)
+# ==============================
+
+Model: ChatMessage
+
+Fields:
+- id
+- user_id
+- role ("user" | "ai")
+- message
+- created_at
+
+---
+
+Rules:
+
+- Save EVERY message:
+    - user message BEFORE AI call
+    - AI message AFTER response
+
+- API:
+    GET /api/ai/history
+    → return last 20 messages
+
+---
+
+# ==============================
+# USER ↔ USER CHAT
+# ==============================
+
+Models:
+
+Conversation:
+- id
+
+ConversationUser:
+- conversation_id
+- user_id
+
+Message:
+- id
+- conversation_id
+- sender_id
+- content
+- created_at
+
+---
+
+Rules:
+
+- Teacher ↔ Student chat
+- role:
+    - teacher
+    - student
+
+---
+
+# ==============================
+# FIREBASE FIRESTORE RULES
+# ==============================
+
+- Firestore is used ONLY for realtime UI
+- SQL is source of truth
+
+---
+
+Structure:
+
+chats/{conversationId}/messages/{messageId}
+
+Fields:
+- senderId
+- role ("user" | "ai" | "teacher" | "student")
+- text
+- createdAt
+
+---
+
+Rules:
+
+- Firestore auto-creates collections → DO NOT manually create
+- ALWAYS use consistent conversationId
+
+---
+
+Conversation ID rules:
+
+- AI chat:
+    ai-{userId}
+
+- User chat:
+    chat-{user1}-{user2}
+
+---
+
+# ==============================
+# FRONTEND RULES (React)
+# ==============================
+
+- NEVER duplicate messages
+- NEVER mix API + Firestore incorrectly
+
+---
+
+# Message handling:
+
+- When sending:
+    setMessages → add user message ONCE
+
+- After API:
+    setMessages → add AI message ONCE
+
+---
+
+# History loading:
+
+- MUST use:
+    setMessages(res.data)
+
+- MUST NOT use:
+    setMessages(prev => [...prev, ...res.data])
+
+---
+
+# Firestore:
+
+- If using onSnapshot:
+    → DO NOT use API history at same time
+
+---
+
+# ==============================
+# AUTO SCROLL RULES
+# ==============================
+
+- ONLY scroll inside chat container
+- DO NOT scroll entire page
+
+Use:
+
+ref.scrollTo({
+  top: ref.scrollHeight
+})
+
+---
+
+# ==============================
+# ERROR HANDLING RULES
+# ==============================
+
+Backend:
+- NEVER crash API
+- ALWAYS return JSON response
+
+Frontend:
+- ALWAYS catch axios errors
+- NEVER break UI
+
+---
+
+# ==============================
+# DEBUG RULES
+# ==============================
+
+ALWAYS add logs when debugging:
+
+print("USER:", message)
+print("COURSES FOUND:", len(courses))
+
+---
+
+# ==============================
+# STRICT LIMITATIONS
+# ==============================
+
+- DO NOT rewrite entire files
+- DO NOT modify unrelated components
+- DO NOT change UI unless asked
+- DO NOT introduce new architecture
+
+---
+
+# ==============================
+# OUTPUT RULES
+# ==============================
+
+When generating code:
+
+- ONLY return modified functions/files
+- NO explanations
+- NO extra comments
+- CLEAN and production-ready code only
+
+---
