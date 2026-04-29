@@ -18,7 +18,7 @@ const TeacherSidebar = ({ isExpanded, setIsExpanded }) => {
     {
       name: "Trợ lý AI",
       icon: <HiSparkles />,
-      path: "/ai",
+      path: "/teacher/ai",
       hasBadge: true,
       badgeText: "AI",
     },

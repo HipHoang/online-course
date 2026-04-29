@@ -7,7 +7,6 @@ from app.models.chat_message import ChatMessage
 
 _client = None
 
-
 def get_client():
     global _client
 
@@ -21,7 +20,6 @@ def get_client():
 
     return _client
 
-
 def fallback_reply(message):
     msg = message.lower()
 
@@ -32,7 +30,6 @@ def fallback_reply(message):
         return "Bạn có thể xem giá khóa học trực tiếp trên hệ thống."
 
     return "AI đang bận, vui lòng thử lại sau."
-
 
 def search_courses(keyword):
     if not keyword:
@@ -50,7 +47,6 @@ def search_courses(keyword):
 
     return courses
 
-
 def get_chat_history(user_id, limit=5):
     messages = ChatMessage.query.filter_by(user_id=user_id) \
         .order_by(ChatMessage.created_at.desc()) \
@@ -59,7 +55,6 @@ def get_chat_history(user_id, limit=5):
     messages.reverse()
     return messages
 
-
 def build_history_text(messages):
     lines = []
     for msg in messages:
@@ -67,13 +62,11 @@ def build_history_text(messages):
         lines.append(f"{prefix}: {msg.message}")
     return "\n".join(lines)
 
-
 def _call_gemini(client, prompt, model):
     return client.models.generate_content(
         model=model,
         contents=prompt
     )
-
 
 def _try_generate(client, prompt):
     primary = "models/gemini-2.5-flash"
@@ -90,7 +83,6 @@ def _try_generate(client, prompt):
             except Exception:
                 return _call_gemini(client, prompt, fallback)
         raise
-
 
 def generate_reply(message, user_id=None):
     try:
@@ -146,4 +138,23 @@ User question:
     except Exception as e:
         print("Gemini error:", e)
         return fallback_reply(message)
+
+def get_course_recommendations(user_id):
+    """Temporary data - replace with ML logic later"""
+    from app.models.course import Course
+    # Get top 4 courses by rating or random for demo
+    courses = Course.query.order_by(Course.course_id).limit(4).all()
+    recommendations = []
+    for i, course in enumerate(courses, 1):
+        recommendations.append({
+            "id": i,
+            "courseId": course.course_id,
+            "title": course.title,
+            "instructor": course.instructor.name if course.instructor else "Unknown Instructor",
+            "image": course.image or "https://images.unsplash.com/photo-1524178232363-9330c6d9dc9e?w=500&auto=format&fit=crop&q=60",
+            "level": course.level or "Cơ bản",
+            "matchPercentage": 85 + i * 3,  # Demo 85-94%
+            "reason": "Khóa học phù hợp với nền tảng lập trình của bạn"
+        })
+    return recommendations
 

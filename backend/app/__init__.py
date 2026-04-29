@@ -17,7 +17,13 @@ def create_app():
     app.config.from_object(Config)
     migrate = Migrate(app, db)
     # 2. Cấu hình CORS cho phép React (thường là port 5173) truy cập
-    CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
+    CORS(
+        app,
+        resources={r"/api/*": {"origins": "http://localhost:5173"}},
+        supports_credentials=True,
+        allow_headers=["Content-Type", "Authorization"],
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    )
     app.url_map.strict_slashes = False
     # 3. Khởi tạo Database
     db.init_app(app)
@@ -33,6 +39,7 @@ def create_app():
     from app.routes.payment_routes import payment_bp
     from app.routes.ai_routes import ai_bp
     from app.routes.chat_routes import chat_bp
+    from app.routes.pathway_routes import pathway_bp
     # ... Đăng ký thêm các route khác tương tự
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -44,6 +51,7 @@ def create_app():
     app.register_blueprint(payment_bp, url_prefix='/api/payment')
     app.register_blueprint(ai_bp, url_prefix='/api/ai')
     app.register_blueprint(chat_bp, url_prefix='/api/chat')
+    app.register_blueprint(pathway_bp, url_prefix='/api/pathways')
 
 
     @app.route('/')

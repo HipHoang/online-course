@@ -55,7 +55,7 @@ const Layout = ({ children }) => {
         </main>
       </div>
 
-      {!isTeacher && <Footer />}
+      <Footer />
     </div>
   );
 };

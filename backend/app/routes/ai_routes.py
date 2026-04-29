@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.services.ai_service import generate_reply
+from app.services.ai_service import generate_reply, get_course_recommendations
 from app.models.chat_message import ChatMessage
 from app.configs.db import db
 from app.utils.response import success_response, error_response
@@ -66,4 +66,15 @@ def get_history():
         return success_response(data=[m.to_dict() for m in messages])
     except Exception as e:
         return error_response(str(e), 500)
+
+@ai_bp.route('/recommendations', methods=['GET'])
+@jwt_required()
+def get_recommendations():
+    try:
+        user_id = get_jwt_identity()
+        data = get_course_recommendations(user_id)
+        return success_response(data=data)
+    except Exception as e:
+        return error_response(message=str(e), status_code=500)
+
 

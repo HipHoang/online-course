@@ -13,6 +13,9 @@ import TeacherDashboard from "./components/pages/teacher_screens/TeacherDashboar
 import CourseTeacher from "./components/pages/teacher_screens/CourseTeacher";
 import TeacherProfile from "./components/pages/teacher_screens/TeacherProfile";
 import AIChat from "./components/AIChat";
+import PathwayStudent from "./components/pages/student_screens/PathwayStudent";
+import AIStudent from "./components/pages/student_screens/AIStudent";
+import FloatingAIChat from "./components/FloatingAIChat";
 
 function App() {
   return (
@@ -20,19 +23,19 @@ function App() {
       <Layout>
         <Routes>
 
-          <Route path="/ai" element={<AIChat />} />
+          <Route path="/ai-chat" element={<AIChat />} />
           {/* student / public */}
           <Route path="/" element={<HomeStudent />} />
           <Route path="/courses" element={<CourseStudent />} />
           <Route path="/all-courses" element={<AllCourses />} />
           <Route path="/courses/:id" element={<CourseDetail />} />
-          <Route path="/pathway" element={<div>Trang lộ trình học</div>} />
           <Route path="/qa" element={<div>Trang hỏi đáp</div>} />
           <Route path="/settings" element={<div>Trang cài đặt</div>} />
-          <Route path="/ai" element={<div>Trang đề xuất AI</div>} />
+          <Route path="/ai" element={<AIStudent />} />
           <Route path="/learn/:id" element={<LearningPage />} />
           <Route path="/payment-success" element={<PaymentSuccess />} />
           <Route path="/payment-failed" element={<PaymentFailed />} />
+          <Route path="/pathway" element={<PathwayStudent />} />
 
 
           {/* teacher */}
@@ -41,8 +44,8 @@ function App() {
           <Route path="/teacher/profile" element={<TeacherProfile />} />
           <Route path="/teacher/qa" element={<div>Trang hỏi đáp giáo viên</div>} />
           <Route path="/teacher/settings" element={<div>Trang cài đặt giáo viên</div>} />
-          <Route path="/teacher/ai" element={<div>Trang trợ lý AI giáo viên</div>} />
         </Routes>
+        <FloatingAIChat />
       </Layout>
     </BrowserRouter>
   );

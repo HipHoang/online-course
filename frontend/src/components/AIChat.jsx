@@ -83,6 +83,7 @@ export default function AIChat() {
           senderId: "ai",
           role: "ai",
           text: reply,
+          createdAt: new Date()
         });
       } catch (err) {
         console.error("Firestore AI save error:", err);
@@ -104,6 +105,16 @@ export default function AIChat() {
     }
   };
 
+  const formatTime = (date) => {
+    if (!date) return "";
+    const d = new Date(date);
+    return d.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -112,7 +123,8 @@ export default function AIChat() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] bg-white">
+    <div className="flex flex-col h-full bg-white overflow-hidden">
+
       {/* HEADER */}
       <div className="p-4 border-b flex items-center gap-3">
         <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
@@ -129,7 +141,8 @@ export default function AIChat() {
       {/* CHAT BODY */}
       <div
         ref={chatRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"
+        className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50"
+        style={{ scrollBehavior: "smooth" }}
       >
         {messages.length === 0 && (
           <div className="text-center text-gray-400 mt-10">
@@ -140,9 +153,8 @@ export default function AIChat() {
         {messages.map((m) => (
           <div
             key={m.id || `${m.role}-${m.text}`}
-            className={`flex items-end gap-2 ${
-              m.role === "user" ? "justify-end" : "justify-start"
-            }`}
+            className={`flex items-end gap-2 ${m.role === "user" ? "justify-end" : "justify-start"
+              }`}
           >
             {/* Avatar AI */}
             {m.role === "ai" && (
@@ -153,14 +165,16 @@ export default function AIChat() {
 
             {/* Message */}
             <div
-              className={`px-4 py-2 rounded-2xl max-w-[70%] text-sm leading-relaxed ${
-                m.role === "user"
+              className={`px-4 py-2 rounded-2xl max-w-[75%] text-[15px] leading-6 ${m.role === "user"
                   ? "bg-blue-500 text-white rounded-br-none"
                   : "bg-white border rounded-bl-none"
-              }`}
+                }`}
             >
               {m.text}
             </div>
+            <span className="text-[11px] text-gray-400 mt-1 px-1">
+              {formatTime(m.createdAt)}
+            </span>
 
             {/* Avatar user */}
             {m.role === "user" && (
