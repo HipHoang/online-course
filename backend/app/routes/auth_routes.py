@@ -96,6 +96,8 @@ def login():
     except Exception as e:
         return {"message": str(e)}, 500
 
+
+
 @auth_bp.route("/google", methods=["POST"])
 def login_google():
     data = request.get_json()

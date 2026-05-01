@@ -1,6 +1,9 @@
 import apiClient from "../untils/auth";
 
+
 export const courseService = {
+
+
   async getAllCourses() {
     try {
       console.log("CALL API getAllCourses");
@@ -124,4 +127,24 @@ export const courseService = {
       chapters: course.chapters || [],
     };
   },
+  searchCourses: async function (params) { // Sử dụng function thay vì arrow để gọi được 'this'
+    try {
+      const response = await apiClient.get("/courses/search", { 
+        params: params 
+      });
+
+      // Lấy data từ cấu trúc success_response của Backend
+      const rawData = response.data.data || response.data;
+      
+      // Quan trọng: Chuẩn hóa dữ liệu ngay tại đây để UI dùng chung 1 format
+      const results = (rawData?.results || []).map((item) =>
+        this.normalizeCourse(item)
+      );
+
+      return results;
+    } catch (error) {
+      console.error("Error in searchCourses service:", error);
+      return [];
+    }
+},
 };

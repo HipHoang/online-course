@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { teacherCourseService } from "../../../services/teacherCourseService";
+import CourseDetailPopup from "./CourseDetailPopup";
 
 const CourseTeacher = () => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedCourseId, setSelectedCourseId] = useState(null);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -77,11 +79,10 @@ const CourseTeacher = () => {
 
               <div className="flex items-center justify-between mb-4">
                 <span
-                  className={`px-3 py-1 rounded-xl text-sm font-medium ${
-                    course.status === "Đã xuất bản"
+                  className={`px-3 py-1 rounded-xl text-sm font-medium ${course.status === "Đã xuất bản"
                       ? "bg-green-100 text-green-700"
                       : "bg-orange-100 text-orange-700"
-                  }`}
+                    }`}
                 >
                   {course.status || "Đã xuất bản"}
                 </span>
@@ -100,15 +101,26 @@ const CourseTeacher = () => {
                 <button className="flex-1 bg-[#0B5CFF] text-white py-3 rounded-2xl font-semibold hover:bg-blue-700 transition">
                   Chỉnh sửa
                 </button>
-                <button className="flex-1 border border-gray-200 py-3 rounded-2xl font-semibold text-slate-700 hover:bg-gray-50 transition">
+                <button
+                  onClick={() => setSelectedCourseId(course.id)}
+                  className="flex-1 border border-gray-200 py-3 rounded-2xl font-semibold text-slate-700 hover:bg-gray-50 transition"
+                >
                   Xem chi tiết
                 </button>
+
               </div>
             </div>
           ))}
         </div>
       )}
+      {selectedCourseId && (
+        <CourseDetailPopup
+          id={selectedCourseId}
+          onClose={() => setSelectedCourseId(null)}
+        />
+      )}
     </div>
+    
   );
 };
 

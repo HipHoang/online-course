@@ -15,4 +15,9 @@ export const registerApi = async (payload) => {
   return res.data;
 };
 
+export const loginGoogleApi = async (token) => {
+  const res = await apiClient.post("/auth/google", { token });
+  return res.data;
+};
+
 export default apiClient;

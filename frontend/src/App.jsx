@@ -17,37 +17,42 @@ import PathwayStudent from "./components/pages/student_screens/PathwayStudent";
 import AIStudent from "./components/pages/student_screens/AIStudent";
 import FloatingAIChat from "./components/FloatingAIChat";
 
+import { GoogleOAuthProvider } from '@react-oauth/google';
+
 function App() {
   return (
-    <BrowserRouter>
-      <Layout>
-        <Routes>
+    // Thay 'YOUR_GOOGLE_CLIENT_ID' bằng ID thật của bạn
+    <GoogleOAuthProvider clientId="464192614331-7lvlr2obsnlddmufli5a7m0o1mle4o16">
+      <BrowserRouter>
+        <Layout>
+          <Routes>
 
-          <Route path="/ai-chat" element={<AIChat />} />
-          {/* student / public */}
-          <Route path="/" element={<HomeStudent />} />
-          <Route path="/courses" element={<CourseStudent />} />
-          <Route path="/all-courses" element={<AllCourses />} />
-          <Route path="/courses/:id" element={<CourseDetail />} />
-          <Route path="/qa" element={<div>Trang hỏi đáp</div>} />
-          <Route path="/settings" element={<div>Trang cài đặt</div>} />
-          <Route path="/ai" element={<AIStudent />} />
-          <Route path="/learn/:id" element={<LearningPage />} />
-          <Route path="/payment-success" element={<PaymentSuccess />} />
-          <Route path="/payment-failed" element={<PaymentFailed />} />
-          <Route path="/pathway" element={<PathwayStudent />} />
+            <Route path="/ai-chat" element={<AIChat />} />
+            {/* student / public */}
+            <Route path="/" element={<HomeStudent />} />
+            <Route path="/courses" element={<CourseStudent />} />
+            <Route path="/all-courses" element={<AllCourses />} />
+            <Route path="/courses/:id" element={<CourseDetail />} />
+            <Route path="/qa" element={<div>Trang hỏi đáp</div>} />
+            <Route path="/settings" element={<div>Trang cài đặt</div>} />
+            <Route path="/ai" element={<AIStudent />} />
+            <Route path="/learn/:id" element={<LearningPage />} />
+            <Route path="/payment-success" element={<PaymentSuccess />} />
+            <Route path="/payment-failed" element={<PaymentFailed />} />
+            <Route path="/pathway" element={<PathwayStudent />} />
 
 
-          {/* teacher */}
-          <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
-          <Route path="/teacher/courses" element={<CourseTeacher />} />
-          <Route path="/teacher/profile" element={<TeacherProfile />} />
-          <Route path="/teacher/qa" element={<div>Trang hỏi đáp giáo viên</div>} />
-          <Route path="/teacher/settings" element={<div>Trang cài đặt giáo viên</div>} />
-        </Routes>
-        <FloatingAIChat />
-      </Layout>
-    </BrowserRouter>
+            {/* teacher */}
+            <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
+            <Route path="/teacher/courses" element={<CourseTeacher />} />
+            <Route path="/teacher/profile" element={<TeacherProfile />} />
+            <Route path="/teacher/qa" element={<div>Trang hỏi đáp giáo viên</div>} />
+            <Route path="/teacher/settings" element={<div>Trang cài đặt giáo viên</div>} />
+          </Routes>
+          <FloatingAIChat />
+        </Layout>
+      </BrowserRouter>
+    </GoogleOAuthProvider>
   );
 }
 

@@ -202,7 +202,7 @@ const GuestHome = () => {
                   : "bg-white text-gray-500 border border-gray-100 hover:bg-gray-50"
                   }`}
               >
-                Pro <span className="text-orange-400">👑</span>
+                Pro 
               </button>
             </div>
 
@@ -426,7 +426,7 @@ const UserDashboard = ({ currentUser }) => {
                 : "bg-white text-gray-500 border border-gray-100 hover:bg-gray-50"
                 }`}
             >
-              Pro <span className="text-orange-400">👑</span>
+              Pro 
             </button>
           </div>
 

@@ -15,13 +15,13 @@ const TeacherSidebar = ({ isExpanded, setIsExpanded }) => {
   const menuItems = [
     { name: "Dashboard", icon: <FiHome />, path: "/teacher/dashboard" },
     { name: "Khóa học của tôi", icon: <FiBookOpen />, path: "/teacher/courses" },
-    {
-      name: "Trợ lý AI",
-      icon: <HiSparkles />,
-      path: "/teacher/ai",
-      hasBadge: true,
-      badgeText: "AI",
-    },
+    // {
+    //   name: "Trợ lý AI",
+    //   icon: <HiSparkles />,
+    //   path: "/teacher/ai",
+    //   hasBadge: true,
+    //   badgeText: "AI",
+    // },
     { name: "Hỏi đáp (Q&A)", icon: <FiMessageCircle />, path: "/teacher/qa" },
     { name: "Hồ sơ", icon: <FiUser />, path: "/teacher/profile" },
     { name: "Cài đặt", icon: <FiSettings />, path: "/teacher/settings" },
