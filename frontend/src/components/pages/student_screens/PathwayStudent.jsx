@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from "react-router-dom";
 import { FiCheck, FiLock, FiPlay } from "react-icons/fi";
 import { HiMapPin } from "react-icons/hi2";
 import { getMyLearningPathway } from "../../../services/pathwayService";
 
 const PathwayStudent = () => {
+  const navigate = useNavigate();
   const [milestones, setMilestones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -34,8 +36,6 @@ const PathwayStudent = () => {
           <div className="inline-flex p-3 bg-blue-50 text-[#0047AB] rounded-2xl">
             <HiMapPin size={32} />
           </div>
-          <h1 className="text-3xl font-bold text-[#021e4b]">Lộ trình học tập của tôi</h1>
-          <p className="text-slate-500">Mục tiêu: Trở thành Frontend Developer</p>
         </div>
         <div className="text-center py-12 text-slate-500">Loading your learning pathway...</div>
       </div>
@@ -51,7 +51,23 @@ const PathwayStudent = () => {
           </div>
           <h1 className="text-3xl font-bold text-[#021e4b]">Lộ trình học tập của tôi</h1>
         </div>
-        <div className="text-center py-12 text-slate-500">No pathway data available.</div>
+        <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm text-center space-y-6">
+          <div className="space-y-2">
+            <p className="text-slate-600 text-lg font-medium">
+              Bạn chưa có khóa học, vui lòng đăng ký khóa học để có lộ trình
+            </p>
+            <p className="text-slate-500 text-sm">
+              Hãy khám phá các khóa học hiện có và bắt đầu hành trình học tập của bạn!
+            </p>
+          </div>
+          <button
+            onClick={() => navigate("/all-courses")}
+            className="inline-flex items-center gap-2 bg-[#0047AB] hover:bg-[#003380] text-white px-6 py-3 rounded-full font-semibold transition-all shadow-lg hover:shadow-xl"
+          >
+            <FiPlay />
+            Khám phá khóa học
+          </button>
+        </div>
       </div>
     );
   }

@@ -12,6 +12,9 @@ import {
   FiStar,
   FiUser,
   FiX,
+  FiEdit2,
+  FiTrash2,
+  FiPlus,
 } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
 import { courseService } from "../../../services/courseService";
@@ -19,6 +22,7 @@ import { paymentService } from "../../../services/paymentService";
 import { reviewService } from "../../../services/reviewService";
 import { getCurrentUser } from "../../../untils/auth";
 import { enrollmentService } from "../../../services/enrollmentService";
+import { lessonService } from "../../../services/lessonService";
 import apiClient from "../../../untils/auth";
 
 const formatPrice = (price) => {
@@ -56,6 +60,24 @@ const CourseDetail = () => {
     average: 0,
     total: 0,
   });
+
+// Role-based UI
+  const currentUser = getCurrentUser();
+  const isTeacher = currentUser?.role === "teacher" || currentUser?.role === "admin";
+
+  // Teacher accordion state - track which lesson is expanded
+  const [openLessonId, setOpenLessonId] = useState(null);
+
+  // Lesson management states
+  const [showAddLesson, setShowAddLesson] = useState(false);
+  const [newLesson, setNewLesson] = useState({
+    title: "",
+    description: "",
+    content: "",
+    video_url: ""
+  });
+  const [editingLessonId, setEditingLessonId] = useState(null);
+  const [editLesson, setEditLesson] = useState({});
 
   const refreshReviewData = (courseId) => {
     const courseReviews = reviewService.getCourseReviews(courseId);
@@ -124,13 +146,15 @@ const CourseDetail = () => {
     );
   };
 
-  // Thêm async vào đây 
+// Thêm async vào đây 
   const enrollFreeCourse = async () => {
     try {
       await enrollmentService.enrollCourse(course.id);
 
       setIsEnrolled(true);
       alert("Đăng ký khóa học thành công!");
+      // Redirect to learning page after successful enrollment
+      navigate(`/learn/${course.id}`);
     } catch (error) {
       console.error(error);
       alert("Có lỗi xảy ra khi đăng ký khóa học.");
@@ -221,7 +245,7 @@ const CourseDetail = () => {
     navigate(`/learn/${course.id}`);
   };
 
-  const handleSubmitReview = () => {
+const handleSubmitReview = () => {
     const currentUser = getCurrentUser();
 
     if (!currentUser) {
@@ -242,6 +266,90 @@ const CourseDetail = () => {
       console.error(error);
       alert("Không thể gửi đánh giá.");
     }
+  };
+
+  // ====== LESSON MANAGEMENT HANDLERS ======
+  const handleAddLesson = async () => {
+    if (!newLesson.title.trim()) {
+      alert("Vui lòng nhập tên bài học");
+      return;
+    }
+    try {
+      const created = await lessonService.createLesson({
+        course_id: parseInt(id),
+        ...newLesson
+      });
+      if (created) {
+        alert("Thêm bài học thành công!");
+        setShowAddLesson(false);
+        setNewLesson({ title: "", description: "", content: "", video_url: "" });
+        // Refresh course data
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error("Add lesson error:", err);
+      alert("Lỗi khi thêm bài học");
+    }
+  };
+
+  const handleUpdateLesson = async (lessonId) => {
+    try {
+      const updated = await lessonService.updateLesson(lessonId, editLesson);
+      if (updated) {
+        alert("Cập nhật bài học thành công!");
+        setEditingLessonId(null);
+        setEditLesson({});
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error("Update lesson error:", err);
+      alert("Lỗi khi cập nhật bài học");
+    }
+  };
+
+  const handleDeleteLesson = async (lessonId) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa bài học này?")) return;
+    try {
+      const success = await lessonService.deleteLesson(lessonId);
+      if (success) {
+        alert("Xóa bài học thành công!");
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error("Delete lesson error:", err);
+      alert("Lỗi khi xóa bài học");
+    }
+  };
+
+  const startEditLesson = (lesson) => {
+    setEditingLessonId(lesson.lesson_id);
+    setEditLesson({
+      title: lesson.title || "",
+      description: lesson.description || "",
+      content: lesson.content || "",
+      video_url: lesson.video_url || ""
+    });
+  };
+
+const cancelEdit = () => {
+    setEditingLessonId(null);
+    setEditLesson({});
+  };
+
+  // ====== TEACHER ACCORDION - Toggle lesson expand/collapse ======
+  const toggleLesson = (lessonId, e) => {
+    e?.stopPropagation(); // Prevent parent click
+    setOpenLessonId(openLessonId === lessonId ? null : lessonId);
+  };
+
+  // Student clicks → navigate to learn page
+  const handleLessonClick = (lessonId, e) => {
+    e?.stopPropagation(); // Prevent teacher accordion toggle
+    if (!isEnrolled) {
+      alert("Bạn cần đăng ký khóa học để xem bài học");
+      return;
+    }
+    navigate(`/learn/${course.id}?lesson=${lessonId}`);
   };
 
   if (loading) {
@@ -368,60 +476,220 @@ const CourseDetail = () => {
                 </button>
               </div>
 
-              <div className="space-y-4">
-                {course.chapters?.map((chapter, chapterIndex) => (
-                  <div
-                    key={chapter.id}
-                    className="border border-gray-100 rounded-2xl overflow-hidden"
+<div className="space-y-4">
+                {/* Teacher: Add Lesson Button */}
+                {isTeacher && (
+                  <button
+                    onClick={() => setShowAddLesson(true)}
+                    className="flex items-center gap-2 px-4 py-3 bg-[#0B5CFF] text-white rounded-xl font-semibold hover:bg-blue-700 transition mb-4"
                   >
-                    <button
-                      onClick={() => toggleChapter(chapter.id)}
-                      className="w-full px-5 py-4 bg-slate-50 hover:bg-slate-100 transition flex items-center justify-between"
-                    >
-                      <div className="text-left">
-                        <h3 className="font-bold text-lg text-slate-800">
-                          {chapterIndex + 1}. {chapter.title}
-                        </h3>
-                        <p className="text-sm text-slate-500">
-                          {chapter.lessonsCount} bài học
-                        </p>
-                      </div>
-                      <FiChevronDown
-                        className={`transition-transform ${openChapters[chapter.id] ? "rotate-180" : ""
-                          }`}
-                      />
-                    </button>
+                    <FiPlus />
+                    Thêm bài học
+                  </button>
+                )}
 
-                    {openChapters[chapter.id] && (
-                      <div className="divide-y divide-gray-100">
-                        {chapter.lessons?.map((lesson, lessonIndex) => (
-                          <div
-                            key={lesson.id}
-                            className="px-5 py-4 flex items-center justify-between gap-4"
-                          >
-                            <div className="flex items-start gap-3">
-                              <div className="mt-1 text-blue-600">
-                                <FiPlayCircle />
-                              </div>
-                              <div>
-                                <p className="font-medium text-slate-800">
-                                  {chapterIndex + 1}.{lessonIndex + 1} {lesson.title}
-                                </p>
-                                <p className="text-sm text-slate-500">
-                                  {lesson.duration}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="text-slate-400 text-sm">
-                              {isEnrolled ? <FiCheckCircle /> : <FiLock />}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                {/* Add Lesson Form */}
+                {showAddLesson && (
+                  <div className="bg-slate-50 rounded-xl p-4 mb-4 border border-gray-200">
+                    <h4 className="font-bold text-slate-800 mb-3">Thêm bài học mới</h4>
+                    <input
+                      type="text"
+                      placeholder="Tên bài học"
+                      value={newLesson.title}
+                      onChange={(e) => setNewLesson({...newLesson, title: e.target.value})}
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2 mb-2"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Video URL (tùy chọn)"
+                      value={newLesson.video_url}
+                      onChange={(e) => setNewLesson({...newLesson, video_url: e.target.value})}
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2 mb-2"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleAddLesson}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium"
+                      >
+                        Lưu
+                      </button>
+                      <button
+                        onClick={() => setShowAddLesson(false)}
+                        className="px-4 py-2 border border-gray-200 text-slate-700 rounded-lg"
+                      >
+                        Hủy
+                      </button>
+                    </div>
                   </div>
-                ))}
+                )}
+
+                {(!course.chapters || course.chapters.length === 0) ? (
+                  <div className="text-center py-8 text-slate-500 bg-gray-50 rounded-xl">
+                    <p>Chưa có bài học nào</p>
+                    {isTeacher && <p className="text-sm">Nhấn "Thêm bài học" để tạo bài học đầu tiên</p>}
+                  </div>
+                ) : (
+                  course.chapters?.map((chapter, chapterIndex) => (
+                    <div
+                      key={chapter.id}
+                      className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-all"
+                    >
+                      <button
+                        onClick={() => toggleChapter(chapter.id)}
+                        className="w-full px-5 py-4 bg-slate-50 hover:bg-slate-100 transition flex items-center justify-between"
+                      >
+                        <div className="text-left">
+                          <h3 className="font-bold text-lg text-slate-800">
+                            {chapterIndex + 1}. {chapter.title}
+                          </h3>
+                          <p className="text-sm text-slate-500">
+                            {chapter.lessonsCount} bài học
+                          </p>
+                        </div>
+                        <FiChevronDown
+                          className={`transition-transform ${openChapters[chapter.id] ? "rotate-180" : ""
+                            }`}
+                        />
+                      </button>
+
+                      {openChapters[chapter.id] && (
+                        <div className="divide-y divide-gray-100">
+                          {chapter.lessons?.map((lesson, lessonIndex) => (
+                            <div
+                              key={lesson.id}
+                              className="px-5 py-4 flex items-center justify-between gap-4 hover:bg-gray-50 transition cursor-pointer"
+                            >
+                              {editingLessonId === lesson.lesson_id ? (
+                                /* Edit Mode */
+                                <div className="flex-1 space-y-2">
+                                  <input
+                                    type="text"
+                                    value={editLesson.title}
+                                    onChange={(e) => setEditLesson({...editLesson, title: e.target.value})}
+                                    className="w-full rounded-lg border border-gray-200 px-2 py-1"
+                                  />
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => handleUpdateLesson(lesson.lesson_id)}
+                                      className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm"
+                                    >
+                                      Lưu
+                                    </button>
+                                    <button
+                                      onClick={cancelEdit}
+                                      className="px-3 py-1 border border-gray-200 text-slate-700 rounded-lg text-sm"
+                                    >
+                                      Hủy
+                                    </button>
+                                  </div>
+                                </div>
+) : (
+                                /* Display Mode - Different behavior for teacher vs student */
+                                <>
+                                  {/* Teacher: Click to expand accordion, Student: Click to navigate */}
+                                  {isTeacher ? (
+                                    <div 
+                                      onClick={(e) => toggleLesson(lesson.lesson_id || lesson.id, e)}
+                                      className={`flex items-start gap-3 flex-1 cursor-pointer rounded-xl border p-4 mb-3 hover:bg-gray-50 transition-all ${openLessonId === (lesson.lesson_id || lesson.id) ? 'border-blue-300 bg-blue-50' : 'border-gray-100'}`}
+                                    >
+                                      <div className={`mt-1 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                                        isEnrolled ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-500"
+                                      }`}>
+                                        {lessonIndex + 1}
+                                      </div>
+                                      <div className="flex-1">
+                                        <p className="font-medium text-slate-800">
+                                          {lesson.title}
+                                        </p>
+                                        <p className="text-sm text-slate-500 flex items-center gap-2">
+                                          {lesson.video_url && "🎥 Video"}
+                                          {lesson.content && "📄 Tài liệu"}
+                                          {lesson.duration || ""}
+                                        </p>
+                                        {/* Expanded content - show details when open */}
+                                        {openLessonId === (lesson.lesson_id || lesson.id) && (
+                                          <div className="mt-3 space-y-2 text-sm">
+                                            {lesson.video_url && (
+                                              <div className="text-blue-600">
+                                                <span className="font-medium">Video:</span> {lesson.video_url.substring(0, 50)}...
+                                              </div>
+                                            )}
+                                            {lesson.description && (
+                                              <div className="text-slate-600">
+                                                <span className="font-medium">Mô tả:</span> {lesson.description}
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                      <FiChevronDown className={`transition-transform ${openLessonId === (lesson.lesson_id || lesson.id) ? "rotate-180" : ""} text-slate-400`} />
+                                    </div>
+                                  ) : (
+                                    /* Student: Navigate to learning page */
+                                    <div 
+                                      onClick={(e) => handleLessonClick(lesson.lesson_id || lesson.id, e)}
+                                      className="flex items-start gap-3 flex-1 cursor-pointer"
+                                    >
+                                      <div className={`mt-1 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                                        isEnrolled ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-500"
+                                      }`}>
+                                        {lessonIndex + 1}
+                                      </div>
+                                      <div>
+                                        <p className="font-medium text-slate-800">
+                                          {lesson.title}
+                                        </p>
+                                        <p className="text-sm text-slate-500 flex items-center gap-2">
+                                          {lesson.video_url && "🎥 Video"}
+                                          {lesson.content && "📄 Tài liệu"}
+                                          {lesson.duration || ""}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  <div className="flex items-center gap-2">
+                                    <div className="text-slate-400 text-sm mr-2">
+                                      {isEnrolled ? (
+                                        <span className="text-green-600 flex items-center gap-1">
+                                          <FiCheckCircle /> Đã học
+                                        </span>
+                                      ) : (
+                                        <span className="flex items-center gap-1">
+                                          <FiLock /> Chưa học
+                                        </span>
+                                      )}
+                                    </div>
+                                    
+                                    {/* Teacher Actions - with e.stopPropagation() to prevent accordion toggle */}
+                                    {isTeacher && (
+                                      <div className="flex gap-1">
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); startEditLesson(lesson); }}
+                                          className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                                          title="Chỉnh sửa"
+                                        >
+                                          <FiEdit2 size={16} />
+                                        </button>
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); handleDeleteLesson(lesson.lesson_id || lesson.id); }}
+                                          className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                                          title="Xóa"
+                                        >
+                                          <FiTrash2 size={16} />
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 

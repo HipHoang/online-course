@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { teacherCourseService } from "../../../services/teacherCourseService";
-import CourseDetailPopup from "./CourseDetailPopup";
 
 const CourseTeacher = () => {
+  const navigate = useNavigate();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedCourseId, setSelectedCourseId] = useState(null);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -97,27 +97,17 @@ const CourseTeacher = () => {
                 <p>Giá: {formatPrice(course.price)}</p>
               </div>
 
-              <div className="mt-6 flex gap-3">
-                <button className="flex-1 bg-[#0B5CFF] text-white py-3 rounded-2xl font-semibold hover:bg-blue-700 transition">
-                  Chỉnh sửa
-                </button>
+<div className="mt-6 flex gap-3">
                 <button
-                  onClick={() => setSelectedCourseId(course.id)}
-                  className="flex-1 border border-gray-200 py-3 rounded-2xl font-semibold text-slate-700 hover:bg-gray-50 transition"
+                  onClick={() => navigate(`/teacher/courses/${course.id}`)}
+                  className="flex-1 bg-[#0B5CFF] text-white py-3 rounded-2xl font-semibold hover:bg-blue-700 transition"
                 >
                   Xem chi tiết
                 </button>
-
               </div>
             </div>
           ))}
         </div>
-      )}
-      {selectedCourseId && (
-        <CourseDetailPopup
-          id={selectedCourseId}
-          onClose={() => setSelectedCourseId(null)}
-        />
       )}
     </div>
     

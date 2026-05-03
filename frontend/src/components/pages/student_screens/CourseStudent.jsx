@@ -174,7 +174,7 @@ const CourseStudent = () => {
             Hãy đăng ký một khóa học để bắt đầu hành trình học tập của bạn.
           </p>
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/all-courses")}
             className="px-6 py-3 rounded-full bg-[#002B5B] text-white font-semibold hover:bg-[#001E3C] transition"
           >
             Khám phá khóa học

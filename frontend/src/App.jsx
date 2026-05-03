@@ -12,6 +12,7 @@ import PaymentFailed from "./components/pages/student_screens/PaymentFailed";
 import TeacherDashboard from "./components/pages/teacher_screens/TeacherDashboard";
 import CourseTeacher from "./components/pages/teacher_screens/CourseTeacher";
 import TeacherProfile from "./components/pages/teacher_screens/TeacherProfile";
+import TeacherCourseDetail from "./components/pages/teacher_screens/TeacherCourseDetail";
 import AIChat from "./components/AIChat";
 import PathwayStudent from "./components/pages/student_screens/PathwayStudent";
 import AIStudent from "./components/pages/student_screens/AIStudent";
@@ -22,7 +23,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 function App() {
   return (
     // Thay 'YOUR_GOOGLE_CLIENT_ID' bằng ID thật của bạn
-    <GoogleOAuthProvider clientId="464192614331-7lvlr2obsnlddmufli5a7m0o1mle4o16">
+    <GoogleOAuthProvider clientId="464192614331-ppagvtr5dl422hr7eb5i3cbq5n9a7f2g">
       <BrowserRouter>
         <Layout>
           <Routes>
@@ -42,9 +43,10 @@ function App() {
             <Route path="/pathway" element={<PathwayStudent />} />
 
 
-            {/* teacher */}
+{/* teacher */}
             <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
             <Route path="/teacher/courses" element={<CourseTeacher />} />
+            <Route path="/teacher/courses/:id" element={<TeacherCourseDetail />} />
             <Route path="/teacher/profile" element={<TeacherProfile />} />
             <Route path="/teacher/qa" element={<div>Trang hỏi đáp giáo viên</div>} />
             <Route path="/teacher/settings" element={<div>Trang cài đặt giáo viên</div>} />

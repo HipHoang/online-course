@@ -16,3 +16,11 @@ def upload_image(file):
     result = cloudinary.uploader.upload(file)
     return result["secure_url"]
 
+def upload_lesson_file(file, resource_type="auto", folder="lessons"):
+    result = cloudinary.uploader.upload(
+        file,
+        resource_type=resource_type,
+        folder=folder
+    )
+    return result["secure_url"]
+

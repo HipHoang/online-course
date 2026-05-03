@@ -1,5 +1,5 @@
-# app/models/course.py
 from app.configs.db import db
+from datetime import datetime
 
 class Course(db.Model):
     __tablename__ = 'courses'
@@ -11,12 +11,15 @@ class Course(db.Model):
     instructor_id = db.Column(db.Integer, db.ForeignKey('users.user_id'))
     level = db.Column(db.String(50), nullable=True)
     category = db.Column(db.String(100), nullable=True)
+    total_duration = db.Column(db.String(50), default="0 giờ")
+    is_published = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
-    # Kết nối với bảng User
+    # Relationships
     instructor = db.relationship('User', backref='courses')
-    # Kết nối với bảng Courses
-    lessons = db.relationship('Lesson', backref='course', lazy=True)
+    lessons = db.relationship('Lesson', back_populates='course', lazy=True, order_by='Lesson.order_index')
+    
     def to_dict(self):
         return {
             "course_id": self.course_id,
@@ -27,5 +30,7 @@ class Course(db.Model):
             "level": self.level,
             "category": self.category,
             "instructor_id": self.instructor_id,
-            "instructor_name": self.instructor.name if self.instructor else "Unknown"
+            "instructor_name": self.instructor.name if self.instructor else "Unknown",
+            "total_duration": self.total_duration,
+            "is_published": self.is_published
         }

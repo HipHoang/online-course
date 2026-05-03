@@ -35,22 +35,7 @@ def get_user_learning_pathway(user_id):
                 'desc': desc
             })
 
-        # TEMP: Demo data if no enrollments (remove after testing)
-        if not results:
-            print("No active enrollments found. Using demo data.")
-            results = [
-                {'id': 1, 'title': 'Frontend Basics', 'status': 'completed', 'desc': 'HTML, CSS, responsive design basics.'},
-                {'id': 2, 'title': 'JavaScript Core', 'status': 'current', 'desc': 'DOM manipulation, events, async JS.'},
-                {'id': 3, 'title': 'React Fundamentals', 'status': 'locked', 'desc': 'Components, hooks, state management.'},
-                {'id': 4, 'title': 'Fullstack Project', 'status': 'locked', 'desc': 'Build complete app with MERN stack.'}
-            ]
-
         return results
     except Exception as e:
         print(f"Pathway service error: {str(e)}")
-        # Fallback demo on error
-        return [
-            {'id': 1, 'title': 'Error Recovery', 'status': 'current', 'desc': f'See logs: {str(e)[:50]}'},
-            {'id': 2, 'title': 'Course 2', 'status': 'locked', 'desc': 'Data loading failed gracefully.'}
-        ]
-
+        return []

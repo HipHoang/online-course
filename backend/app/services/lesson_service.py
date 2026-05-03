@@ -3,8 +3,74 @@ from app.configs.db import db
 from app.models import LessonProgress, Lesson, CourseProgress
 from sqlalchemy import func
 
-def complete_lesson(student_id, lesson_id):
+def get_lessons_by_course(course_id):
+    """Get all lessons for a course, sorted by order_index"""
+    lessons = Lesson.query.filter_by(course_id=course_id).order_by(Lesson.order_index.asc()).all()
+    return [lesson.to_dict() for lesson in lessons]
 
+def create_lesson(course_id, data):
+    """Create a new lesson for a course"""
+    # Get max order_index
+    max_order = db.session.query(func.max(Lesson.order_index)).filter_by(course_id=course_id).scalar()
+    new_order = (max_order or 0) + 1
+    
+    lesson = Lesson(
+        course_id=course_id,
+        title=data.get('title'),
+        description=data.get('description'),
+        content=data.get('content'),
+        video_url=data.get('video_url'),
+        document_url=data.get('document_url'),
+        order_index=data.get('order_index', new_order)
+    )
+    
+    db.session.add(lesson)
+    db.session.commit()
+    
+    return lesson.to_dict()
+
+def update_lesson(lesson_id, data):
+    """Update an existing lesson"""
+    lesson = Lesson.query.get(lesson_id)
+    if not lesson:
+        return None
+    
+    if 'title' in data and data['title']:
+        lesson.title = data['title']
+    if 'description' in data:
+        lesson.description = data['description']
+    if 'content' in data:
+        lesson.content = data['content']
+    if 'video_url' in data:
+        lesson.video_url = data['video_url']
+    if 'document_url' in data:
+        lesson.document_url = data['document_url']
+    if 'order_index' in data:
+        lesson.order_index = data['order_index']
+    
+    db.session.commit()
+    return lesson.to_dict()
+
+def delete_lesson(lesson_id):
+    """Delete a lesson"""
+    lesson = Lesson.query.get(lesson_id)
+    if not lesson:
+        return False
+    
+    db.session.delete(lesson)
+    db.session.commit()
+    return True
+
+def get_lesson_by_id(lesson_id):
+    """Get a single lesson by ID"""
+    lesson = Lesson.query.get(lesson_id)
+    if not lesson:
+        return None
+    return lesson.to_dict()
+
+# ========== EXISTING FUNCTIONS ==========
+
+def complete_lesson(student_id, lesson_id):
     lesson = Lesson.query.get(lesson_id)
     if not lesson:
         return {"error": "Lesson not found"}, 404

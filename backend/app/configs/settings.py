@@ -25,3 +25,4 @@ class Config:
 
     # Gemini
     GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+    GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')

@@ -128,6 +128,28 @@ def get_course_detail(course_id):
     return success_response(data=data,message="Lấy chi tiết khóa học thành công",status_code=200)
 
 
+@course_bp.route('/<int:course_id>/detail-with-lessons', methods=['GET'])
+def get_course_detail_with_lessons(course_id):
+    """Get course detail with all lessons"""
+    try:
+        from app.services.lesson_service import get_lessons_by_course
+        
+        course = Course.query.get(course_id)
+        if not course:
+            return jsonify({"message": "Course not found"}), 404
+        
+        lessons = get_lessons_by_course(course_id)
+        
+        data = {
+            "course": course.to_dict(),
+            "lessons": lessons
+        }
+        
+        return success_response(data=data)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+
 # =========================
 # GET MY COURSES
 # =========================

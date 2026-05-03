@@ -9,118 +9,128 @@ import {
   FiPlayCircle,
   FiSend,
 } from "react-icons/fi";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { courseService } from "../../../services/courseService";
+import { lessonService } from "../../../services/lessonService";
 import { qaService } from "../../../services/qaService";
 import { getCurrentUser } from "../../../untils/auth";
 import { enrollmentService } from "../../../services/enrollmentService";
 
 const LearningPage = () => {
-  const { id } = useParams();
+  const { id: courseId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
   const [course, setCourse] = useState(null);
+  const [lessons, setLessons] = useState([]);
   const [openChapters, setOpenChapters] = useState({});
   const [currentLesson, setCurrentLesson] = useState(null);
   const [enrolledCourse, setEnrolledCourse] = useState(null);
   const [questionText, setQuestionText] = useState("");
-  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [quiz, setQuiz] = useState(null);
+  const [quizAnswers, setQuizAnswers] = useState({});
+  const [quizResult, setQuizResult] = useState(null);
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
 
   useEffect(() => {
     const fetchCourse = async () => {
       try {
-        const data = await courseService.getCourseById(id);
-        setCourse(data);
+        setLoading(true);
 
-        const isEnrolled = await enrollmentService.checkEnrollment(id);
+        // Get course detail with lessons
+        const data = await lessonService.getCourseDetailWithLessons(courseId);
 
+        if (!data.course) {
+          // Fallback to regular course detail
+          const courseData = await courseService.getCourseById(courseId);
+          setCourse(courseData);
+          setLessons(courseData.chapters?.flatMap(ch => ch.lessons || []) || []);
+        } else {
+          setCourse(data.course);
+          setLessons(data.lessons || []);
+        }
+
+        // Check enrollment
+        const isEnrolled = await enrollmentService.checkEnrollment(courseId);
         if (!isEnrolled) {
           alert("Bạn chưa đăng ký khóa học này");
-          navigate(`/courses/${id}`);
+          navigate(`/courses/${courseId}`);
           return;
         }
 
-        const progressData = await enrollmentService.getLearningProgress(id);
+        // Get progress
+        const progressData = await enrollmentService.getLearningProgress(courseId);
         setEnrolledCourse(progressData);
 
-        const lessonId = progressData?.currentLessonId;
+        // Get current lesson from URL query param
+        const lessonIdFromUrl = searchParams.get('lesson');
 
-        let foundLesson = null;
+        // Open first chapter by default
         const initialState = {};
-
-        data.chapters?.forEach((chapter, index) => {
-          initialState[chapter.id] = index === 0;
-
-          chapter.lessons?.forEach((lesson) => {
-            if (lesson.id === lessonId) {
-              foundLesson = lesson;
-            }
-          });
-        });
-
+        if (lessons.length > 0) {
+          initialState[0] = true; // First "chapter" is just all lessons
+        }
         setOpenChapters(initialState);
 
-        const firstLesson =
-          data?.chapters?.[0]?.lessons?.[0] ||
-          data?.lessons?.[0] ||
-          null;
+        // Set current lesson
+        let foundLesson = null;
+        if (lessonIdFromUrl) {
+          foundLesson = lessons.find(l => l.lesson_id === parseInt(lessonIdFromUrl));
+        }
 
-        setCurrentLesson(foundLesson || firstLesson);
-        
-        // Removed refreshQA(id) as it depends on mock data
+        setCurrentLesson(foundLesson || lessons[0] || null);
+
       } catch (error) {
         console.error(error);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchCourse();
-  }, [id, navigate]);
+  }, [courseId, navigate, searchParams]);
 
-  const allLessons = useMemo(() => {
-    if (!course) return [];
-    return course.chapters.flatMap((chapter) =>
-      chapter.lessons.map((lesson) => ({
-        ...lesson,
-        chapterTitle: chapter.title,
-      }))
-    );
-  }, [course]);
+  useEffect(() => {
+    const loadQuiz = async () => {
+      if (currentLesson?.quiz) {
+        const fullQuiz = await lessonService.getQuiz(currentLesson.lesson_id);
+        setQuiz(fullQuiz);
+      } else {
+        setQuiz(null);
+        setQuizAnswers({});
+        setQuizResult(null);
+        setQuizSubmitted(false);
+      }
+    };
+    loadQuiz();
+  }, [currentLesson]);
 
-  const currentLessonIndex = allLessons.findIndex(
-    (lesson) => lesson.id === currentLesson?.id
-  );
-
-  const completedLessons = enrolledCourse?.completedLessons || 0;
-  const unlockedIndex = Math.min(completedLessons, allLessons.length - 1);
-
-  const handleSelectLesson = (lesson, lessonIndex) => {
-    if (lessonIndex > unlockedIndex) {
-      alert("Bạn cần hoàn thành bài hiện tại để mở khóa bài tiếp theo.");
-      return;
-    }
-
+  const handleSelectLesson = (lesson) => {
     setCurrentLesson(lesson);
+    setSearchParams({
+      lesson: lesson.lesson_id.toString()
+    });
   };
 
   const handleCompleteLesson = async () => {
     if (!currentLesson) return;
 
     try {
-      // Assuming updateProgress exists in enrollmentService
       await enrollmentService.updateProgress({
-        courseId: id,
-        lessonId: currentLesson.id,
+        courseId: courseId,
+        lessonId: currentLesson.lesson_id,
       });
 
-      const progressData = await enrollmentService.getLearningProgress(id);
+      const progressData = await enrollmentService.getLearningProgress(courseId);
       setEnrolledCourse(progressData);
 
-      const newCompletedLessons = progressData?.completedLessons || 0;
+      const completedLessons = progressData?.completedLessons || 0;
 
       alert(
-        newCompletedLessons >= allLessons.length
-          ? "Chúc mừng! Bạn đã hoàn thành khóa học."
-          : "Đã hoàn thành bài học. Bài tiếp theo đã được mở khóa!"
+        completedLessons >= lessons.length ?
+          "Chúc mừng! Bạn đã hoàn thành khóa học." :
+          "Đã hoàn thành bài học. Bài tiếp theo đã được mở khóa!"
       );
     } catch (error) {
       console.error(error);
@@ -128,31 +138,48 @@ const LearningPage = () => {
     }
   };
 
+  const handleSubmitQuiz = async () => {
+    if (!quiz || Object.keys(quizAnswers).length < quiz.questions.length) {
+      alert("Vui lòng trả lời tất cả câu hỏi.");
+      return;
+    }
+
+    try {
+      const result = await lessonService.submitQuiz(currentLesson.lesson_id, quizAnswers);
+      setQuizResult(result);
+      setQuizSubmitted(true);
+
+      if (result.passed) {
+        handleCompleteLesson();
+      }
+    } catch (error) {
+      console.error("Submit quiz error:", error);
+      alert("Lỗi nộp bài.");
+    }
+  };
 
   const handleNextLesson = () => {
-    if (currentLessonIndex < allLessons.length - 1) {
-      const nextIndex = currentLessonIndex + 1;
+    if (!currentLesson || lessons.length === 0) return;
 
-      if (nextIndex > unlockedIndex) {
-        alert("Bạn cần bấm hoàn thành bài hiện tại để mở bài tiếp theo.");
-        return;
-      }
-
-      setCurrentLesson(allLessons[nextIndex]);
+    const currentIndex = lessons.findIndex(l => l.lesson_id === currentLesson?.lesson_id);
+    if (currentIndex < lessons.length - 1) {
+      setCurrentLesson(lessons[currentIndex + 1]);
     }
   };
 
   const handlePrevLesson = () => {
-    if (currentLessonIndex > 0) {
-      const prevLesson = allLessons[currentLessonIndex - 1];
-      setCurrentLesson(prevLesson);
+    if (!currentLesson || lessons.length === 0) return;
+
+    const currentIndex = lessons.findIndex(l => l.lesson_id === currentLesson?.lesson_id);
+    if (currentIndex > 0) {
+      setCurrentLesson(lessons[currentIndex - 1]);
     }
   };
 
-  const toggleChapter = (chapterId) => {
+  const toggleChapter = (chapterIndex) => {
     setOpenChapters((prev) => ({
       ...prev,
-      [chapterId]: !prev[chapterId],
+      [chapterIndex]: !prev[chapterIndex],
     }));
   };
 
@@ -170,7 +197,7 @@ const LearningPage = () => {
     }
 
     try {
-      qaService.askQuestion(id, questionText);
+      qaService.askQuestion(courseId, questionText);
       setQuestionText("");
     } catch (error) {
       console.error(error);
@@ -178,20 +205,20 @@ const LearningPage = () => {
     }
   };
 
-  if (!course) {
+  if (loading) {
     return <div className="p-6">Đang tải bài học...</div>;
   }
 
-  if (!currentLesson) {
-    return (
-      <div className="p-6">
-        Khóa học này hiện chưa có bài học để hiển thị.
-      </div>
-    );
+  if (!course) {
+    return <div className="p-6">Không tìm thấy khóa học.</div>;
   }
+
+  const completedLessons = enrolledCourse?.completedLessons || 0;
+  const totalLessons = lessons.length;
 
   return (
     <div className="h-[calc(100vh-120px)] flex gap-6">
+      {/* Main Content Area */}
       <div className="flex-1 bg-white rounded-[28px] border border-gray-100 overflow-hidden shadow-sm flex flex-col">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <button
@@ -203,27 +230,130 @@ const LearningPage = () => {
           </button>
 
           <div className="text-sm text-slate-500">
-            {completedLessons}/{allLessons.length} bài đã hoàn thành
+            {completedLessons}/{totalLessons} bài đã hoàn thành
           </div>
         </div>
 
-        <div className="flex-1 bg-[#0b1220] flex items-center justify-center">
-          <div className="w-full h-full flex items-center justify-center bg-black">
-            <div className="relative w-[85%] max-w-4xl">
-              <img
-                src={course.introVideoThumbnail || course.image}
-                alt={currentLesson.title}
-                className="w-full max-h-130 object-cover rounded-2xl"
-              />
-              <div className="absolute inset-0 bg-black/25 rounded-2xl flex items-center justify-center">
-                <button className="w-20 h-20 rounded-full bg-[#ff6b2c] text-white flex items-center justify-center shadow-xl">
-                  <FiPlayCircle size={40} />
-                </button>
+        {/* Content Viewer */}
+        <div className="flex-1 bg-[#0b1220] flex items-center justify-center overflow-auto">
+          <div className="w-full h-full flex items-center justify-center p-6">
+            {currentLesson?.video_url ? (
+              // Video player
+              <div className="w-full max-w-4xl">
+                <video
+                  controls
+                  className="w-full rounded-2xl"
+                  src={currentLesson.video_url}
+                >
+                  Your browser does not support the video tag.
+                </video>
               </div>
+            ) : currentLesson?.document_url ? (
+              // Document viewer (iframe for PDF)
+              <iframe
+                src={currentLesson.document_url}
+                className="w-full h-[70vh] rounded-2xl"
+                title={currentLesson.title}
+              />
+            ) : currentLesson?.content || currentLesson?.description ? (
+              // Text content
+              <div className="w-full max-w-4xl bg-white rounded-2xl p-8 text-slate-800">
+                <h2 className="text-2xl font-bold mb-4">{currentLesson.title}</h2>
+                <div
+                  className="prose max-w-none"
+                  dangerouslySetInnerHTML={{ __html: currentLesson.content || currentLesson.description }}
+                />
+              </div>
+            ) : (
+              // Placeholder - no content
+              <div className="text-center text-white">
+                <FiPlayCircle size={64} className="mx-auto mb-4 opacity-50" />
+                <p className="text-xl">Nội dung đang được cập nhật...</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Quiz Section */}
+        {quiz && !quizSubmitted && (
+          <div className="px-6 py-6 border-t border-gray-200 bg-linear-to-b from-white to-slate-50">
+            <h3 className="text-2xl font-bold mb-6 text-slate-800 flex items-center gap-3">
+              📝 Kiểm tra kiến thức
+            </h3>
+            <div className="space-y-6">
+              {quiz.questions.map((q, qIdx) => (
+                <div key={q.question_id} className="bg-white rounded-2xl p-6 shadow-sm border">
+                  <div className="flex items-start gap-3 mb-6">
+                    <div className="w-10 h-10 bg-[#0B5CFF] text-white rounded-xl flex items-center justify-center font-bold text-lg shrink-0">
+                      {qIdx + 1}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-lg text-slate-800 mb-2">{q.content}</h4>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {q.answers.map((a, aIdx) => (
+                      <label
+                        key={a.answer_id}
+                        className="flex items-center p-4 border border-gray-200 rounded-xl hover:bg-gray-50 cursor-pointer transition-all"
+                      >
+                        <input
+                          type="radio"
+                          name={`q_${q.question_id}`}
+                          value={aIdx}
+                          checked={quizAnswers[q.question_id] == aIdx}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setQuizAnswers({
+                                ...quizAnswers,
+                                [q.question_id]: parseInt(e.target.value)
+                              });
+                            }
+                          }}
+                          className="mr-4 w-5 h-5 text-[#0B5CFF] border-gray-300 focus:ring-[#0B5CFF] rounded-full"
+                        />
+                        <span className="text-slate-800 font-medium">{a.content}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={handleSubmitQuiz}
+              disabled={Object.keys(quizAnswers).length < quiz.questions.length}
+              className="mt-8 w-full bg-linear-to-r from-[#0B5CFF] to-[#1e40af] text-white py-4 rounded-2xl font-bold text-lg hover:from-[#1e40af] hover:to-[#1d4ed8] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transition-all"
+            >
+              Nộp bài kiểm tra
+            </button>
+          </div>
+        )}
+
+        {quizResult && (
+          <div className="px-6 py-8 border-t border-gray-200 bg-linear-to-r from-green-50 to-emerald-50">
+            <div className="text-center">
+              <div className="w-24 h-24 bg-green-100 rounded-3xl mx-auto mb-6 flex items-center justify-center">
+                <FiCheckCircle className="w-16 h-16 text-green-600" />
+              </div>
+              <h3 className="text-3xl font-bold text-green-800 mb-4">
+                {Math.round(quizResult.score * 100)}%
+              </h3>
+              <p className="text-xl font-semibold text-slate-700 mb-6">
+                {quizResult.passed ? 'Xuất sắc! Bài học hoàn thành.' : 'Cần học lại một số phần.'}
+              </p>
+              {quizResult.passed && (
+                <button
+                  onClick={handleCompleteLesson}
+                  className="w-full bg-green-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-green-700 transition-all shadow-lg"
+                >
+                  Hoàn thành bài học
+                </button>
+              )}
             </div>
           </div>
-        </div>
+        )}
 
+        {/* Navigation Footer */}
         <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-white">
           <button
             onClick={handlePrevLesson}
@@ -233,8 +363,8 @@ const LearningPage = () => {
           </button>
 
           <div className="text-center">
-            <h2 className="font-bold text-lg text-slate-800">{currentLesson.title}</h2>
-            <p className="text-sm text-slate-500">{currentLesson.duration}</p>
+            <h2 className="font-bold text-lg text-slate-800">{currentLesson?.title}</h2>
+            <p className="text-sm text-slate-500">Bài {completedLessons + 1} / {totalLessons}</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -255,9 +385,11 @@ const LearningPage = () => {
         </div>
       </div>
 
+      {/* Lesson List Sidebar */}
       <div className="w-96 bg-white rounded-[28px] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
         <div className="p-5 border-b border-gray-100">
           <h3 className="text-2xl font-bold text-slate-800">Nội dung khóa học</h3>
+          <p className="text-sm text-slate-500">{course?.title}</p>
         </div>
 
         <div className="p-4 border-b border-gray-100">
@@ -272,7 +404,7 @@ const LearningPage = () => {
                 style={{
                   width: `${Math.min(
                     100,
-                    Math.round((completedLessons / Math.max(allLessons.length, 1)) * 100)
+                    Math.round((completedLessons / Math.max(totalLessons, 1)) * 100)
                   )}%`,
                 }}
               />
@@ -280,67 +412,35 @@ const LearningPage = () => {
           </div>
         </div>
 
+        {/* Lesson List */}
         <div className="flex-1 overflow-y-auto">
-          {course.chapters?.map((chapter, chapterIndex) => (
-            <div key={chapter.id} className="border-b border-gray-100">
+          <div className="divide-y divide-gray-100">
+            {lessons.map((lesson, index) => (
               <button
-                onClick={() => toggleChapter(chapter.id)}
-                className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50"
+                key={lesson.lesson_id}
+                onClick={() => handleSelectLesson(lesson)}
+                className={`w-full text-left px-4 py-4 flex items-center justify-between hover:bg-blue-50 ${currentLesson?.lesson_id === lesson.lesson_id ? "bg-orange-50" : ""
+                  }`}
               >
-                <div>
-                  <h4 className="font-bold text-lg text-slate-800">
-                    {chapterIndex + 1}. {chapter.title}
-                  </h4>
-                  <p className="text-sm text-slate-500">
-                    {chapter.lessonsCount} bài học
-                  </p>
+                <div className="flex items-start gap-3">
+                  <div className={`mt-1 ${index < completedLessons ? 'text-green-600' : 'text-[#ff6b2c]'}`}>
+                    {index < completedLessons ? <FiCheckCircle /> : <FiPlayCircle />}
+                  </div>
+                  <div>
+                    <p className="text-slate-800 font-medium">
+                      {index + 1}. {lesson.title}
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      {lesson.video_url ? 'Video' : lesson.document_url ? 'Tài liệu' : 'Văn bản'}
+                    </p>
+                  </div>
                 </div>
-                <FiChevronDown
-                  className={`transition-transform ${openChapters[chapter.id] ? "rotate-180" : ""}`}
-                />
               </button>
-
-              {openChapters[chapter.id] && (
-                <div className="bg-white">
-                  {chapter.lessons?.map((lesson, lessonIndex) => {
-                    const flatIndex = allLessons.findIndex(
-                      (item) => item.id === lesson.id
-                    );
-                    const isUnlocked = flatIndex <= unlockedIndex;
-                    const isCompleted = flatIndex < completedLessons;
-
-                    return (
-                      <button
-                        key={lesson.id}
-                        onClick={() => handleSelectLesson(lesson, flatIndex)}
-                        className={`w-full text-left px-4 py-4 flex items-center justify-between hover:bg-blue-50 ${currentLesson.id === lesson.id ? "bg-orange-50" : ""
-                          }`}
-                      >
-                        <div>
-                          <p className="text-slate-800">
-                            {chapterIndex + 1}.{lessonIndex + 1} {lesson.title}
-                          </p>
-                          <p className="text-sm text-slate-500">{lesson.duration}</p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          {isCompleted ? (
-                            <FiCheckCircle className="text-green-600" />
-                          ) : isUnlocked ? (
-                            <FiPlayCircle className="text-[#ff6b2c]" />
-                          ) : (
-                            <FiLock className="text-slate-400" />
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
+        {/* QA Section */}
         <div className="border-t border-gray-100 p-4 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <button className="flex items-center justify-center gap-2 rounded-2xl border border-gray-200 py-3 font-medium text-slate-700 hover:bg-gray-50">
