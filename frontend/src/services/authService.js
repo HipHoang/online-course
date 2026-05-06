@@ -1,4 +1,4 @@
-import apiClient from "../untils/auth";
+import apiClient from "../untils/apiClient";
 
 export const loginApi = async (payload) => {
   const res = await apiClient.post("/auth/login", payload);

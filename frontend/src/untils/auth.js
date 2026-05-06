@@ -51,39 +51,39 @@ export const isTeacherRole = (role) => {
     return role === "teacher" || role === "GiangVien" || role === "GV";
 };
 
-// Axios Instance
-const apiClient = axios.create({
-    baseURL: API_BASE_URL,
-    headers: {
-        'Content-Type': 'application/json',
-    },
-});
+// // Axios Instance
+// const apiClient = axios.create({
+//     baseURL: API_BASE_URL,
+//     headers: {
+//         'Content-Type': 'application/json',
+//     },
+// });
 
-// Request Interceptor
-apiClient.interceptors.request.use(
-    (config) => {
-        const token = getCurrentToken();
-        if (token) {
-            config.headers['Authorization'] = `Bearer ${token}`;
-        }
-        return config;
-    },
-    (error) => {
-        return Promise.reject(error);
-    }
-);
+// // Request Interceptor
+// apiClient.interceptors.request.use(
+//     (config) => {
+//         const token = getCurrentToken();
+//         if (token) {
+//             config.headers['Authorization'] = `Bearer ${token}`;
+//         }
+//         return config;
+//     },
+//     (error) => {
+//         return Promise.reject(error);
+//     }
+// );
 
-// Response Interceptor
-apiClient.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        // Chỉ logout nếu request yêu cầu Auth (Authorization header) và bị 401
-        if (error.response && error.response.status === 401 && error.config.headers['Authorization']) {
-            clearStoredAuth();
-        }
-        return Promise.reject(error);
-    }
-);
+// // Response Interceptor
+// apiClient.interceptors.response.use(
+//     (response) => response,
+//     (error) => {
+//         // Chỉ logout nếu request yêu cầu Auth (Authorization header) và bị 401
+//         if (error.response && error.response.status === 401 && error.config.headers['Authorization']) {
+//             clearStoredAuth();
+//         }
+//         return Promise.reject(error);
+//     }
+// );
 
 
-export default apiClient;
+// export default apiClient;

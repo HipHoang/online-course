@@ -1,4 +1,4 @@
-import apiClient from "../untils/auth";
+import apiClient from "../untils/apiClient";
 
 export const teacherCourseService = {
   async getTeacherCourses() {

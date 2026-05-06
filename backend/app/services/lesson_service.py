@@ -8,9 +8,29 @@ def get_lessons_by_course(course_id):
     lessons = Lesson.query.filter_by(course_id=course_id).order_by(Lesson.order_index.asc()).all()
     return [lesson.to_dict() for lesson in lessons]
 
+# def create_lesson(course_id, data):
+#     """Create a new lesson for a course"""
+#     # Get max order_index
+#     max_order = db.session.query(func.max(Lesson.order_index)).filter_by(course_id=course_id).scalar()
+#     new_order = (max_order or 0) + 1
+    
+#     lesson = Lesson(
+#         course_id=course_id,
+#         title=data.get('title'),
+#         description=data.get('description'),
+#         content=data.get('content'),
+#         video_url=data.get('video_url'),
+#         document_url=data.get('document_url'),
+#         order_index=data.get('order_index', new_order)
+#     )
+    
+#     db.session.add(lesson)
+#     db.session.commit()
+    
+#     return lesson.to_dict()
 def create_lesson(course_id, data):
     """Create a new lesson for a course"""
-    # Get max order_index
+    # Tự động lấy order_index lớn nhất nếu không truyền vào
     max_order = db.session.query(func.max(Lesson.order_index)).filter_by(course_id=course_id).scalar()
     new_order = (max_order or 0) + 1
     
@@ -20,8 +40,8 @@ def create_lesson(course_id, data):
         description=data.get('description'),
         content=data.get('content'),
         video_url=data.get('video_url'),
-        document_url=data.get('document_url'),
-        order_index=data.get('order_index', new_order)
+        document_url=data.get('document_url'), # Phải có trường này
+        order_index=data.get('order_index') if data.get('order_index') else new_order
     )
     
     db.session.add(lesson)

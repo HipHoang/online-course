@@ -8,6 +8,10 @@ class Post(db.Model):
     course_id = db.Column(db.Integer, db.ForeignKey('courses.course_id'))
     content = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    author = db.relationship('User', back_populates='posts')
+    
+    # Đảm bảo cũng có relationship với Course nếu bạn muốn dùng p.course.title
+    course = db.relationship('Course', backref='posts', lazy=True)
 
 class Comment(db.Model):
     __tablename__ = 'comments'

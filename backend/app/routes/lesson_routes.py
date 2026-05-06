@@ -131,27 +131,34 @@ def remove_lesson(lesson_id):
 
 # New Quiz & Upload Routes
 
-@lesson_bp.route('/<int:lesson_id>/upload', methods=['POST'])
+@lesson_bp.route('/<string:lesson_id>/upload', methods=['POST'])
 @jwt_required()
 def upload_to_lesson(lesson_id):
     try:
-        if 'file' not in request.files:
-            return error_response("No file provided", 400)
+        file_key = 'video' if 'video' in request.files else 'document'
+        
+        if file_key not in request.files:
+            return error_response("Không tìm thấy file tải lên", 400)
 
-        file = request.files['file']
-        field = request.form.get('field', 'video')  # 'video' or 'document'
+        file = request.files[file_key]
+        resource_type = 'video' if file_key == 'video' else 'auto'
 
-        if field not in ['video', 'document']:
-            return error_response("Invalid field", 400)
+        url = upload_lesson_file(file, resource_type=resource_type)
 
-        url = upload_lesson_file(file, resource_type='video' if field == 'video' else 'auto')
+        lesson_data = None
+        if lesson_id != "temp" and lesson_id.isdigit():
+            data = {file_key + '_url': url}
+            lesson_data = update_lesson(int(lesson_id), data)
 
-        data = {field + '_url': url}
-        lesson = update_lesson(lesson_id, data)
-
-        return success_response(data={'url': url, 'lesson': lesson})
+        return success_response(
+            data={'url': url, 'lesson': lesson_data}, 
+            message="Tải lên thành công"
+        )
     except Exception as e:
+        print(f"--- LỖI UPLOAD: {str(e)} ---")
         return error_response(str(e), 500)
+    
+    
 
 @lesson_bp.route('/<int:lesson_id>/quiz', methods=['POST'])
 @jwt_required()

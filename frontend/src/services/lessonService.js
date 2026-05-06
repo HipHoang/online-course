@@ -1,4 +1,4 @@
-import apiClient from "../untils/auth";
+import apiClient from "../untils/apiClient";
 
 export const lessonService = {
   /**
@@ -89,17 +89,24 @@ export const lessonService = {
  * Upload file to lesson (teacher)
  * POST /api/lessons/<lesson_id>/upload
  */
+// services/lessonService.js
 async uploadLessonFile(lessonId, file, field) {
   const formData = new FormData();
-  formData.append('file', file);
-  formData.append('field', field);
+  
+  // Tín nên dùng field làm key (ví dụ: formData.append('video', file))
+  // để khớp với logic check 'if field in request.files' ở Backend
+  formData.append(field, file); 
+
   try {
+    // Đảm bảo lessonId truyền vào đây có thể là số hoặc chuỗi "temp"
     const res = await apiClient.post(`/lessons/${lessonId}/upload`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
-    return res.data;
+    
+    // Backend trả về success_response nên cần lấy .data
+    return res.data?.data || res.data; 
   } catch (error) {
     console.error("uploadLessonFile ERROR:", error.response?.data || error);
     throw error;

@@ -23,7 +23,7 @@ import { reviewService } from "../../../services/reviewService";
 import { getCurrentUser } from "../../../untils/auth";
 import { enrollmentService } from "../../../services/enrollmentService";
 import { lessonService } from "../../../services/lessonService";
-import apiClient from "../../../untils/auth";
+import apiClient from "../../../untils/apiClient";
 
 const formatPrice = (price) => {
   if (!price || Number(price) === 0) return "Miễn phí";
@@ -61,7 +61,7 @@ const CourseDetail = () => {
     total: 0,
   });
 
-// Role-based UI
+  // Role-based UI
   const currentUser = getCurrentUser();
   const isTeacher = currentUser?.role === "teacher" || currentUser?.role === "admin";
 
@@ -79,19 +79,25 @@ const CourseDetail = () => {
   const [editingLessonId, setEditingLessonId] = useState(null);
   const [editLesson, setEditLesson] = useState({});
 
-  const refreshReviewData = (courseId) => {
-    const courseReviews = reviewService.getCourseReviews(courseId);
-    const stats = reviewService.getCourseReviewStats(courseId);
-    const myReview = reviewService.getMyReview(courseId);
+  // Trước: const refreshReviewData = (courseId) => {
+  // Sau:
+  const refreshReviewData = async (courseId) => { // Thêm async ở đây
+    try {
+      const courseReviews = await reviewService.getCourseReviews(courseId);
+      const stats = await reviewService.getCourseReviewStats(courseId);
+      const myReview = await reviewService.getMyReview(courseId);
 
-    setReviews(courseReviews);
-    setReviewStats(stats);
+      setReviews(courseReviews);
+      setReviewStats(stats);
 
-    if (myReview) {
-      setReviewForm({
-        rating: myReview.rating,
-        comment: myReview.comment || "",
-      });
+      if (myReview) {
+        setReviewForm({
+          rating: myReview.rating,
+          comment: myReview.comment || "",
+        });
+      }
+    } catch (error) {
+      console.error("Lỗi khi cập nhật đánh giá:", error);
     }
   };
 
@@ -146,7 +152,7 @@ const CourseDetail = () => {
     );
   };
 
-// Thêm async vào đây 
+  // Thêm async vào đây 
   const enrollFreeCourse = async () => {
     try {
       await enrollmentService.enrollCourse(course.id);
@@ -245,7 +251,7 @@ const CourseDetail = () => {
     navigate(`/learn/${course.id}`);
   };
 
-const handleSubmitReview = () => {
+  const handleSubmitReview = async () => {
     const currentUser = getCurrentUser();
 
     if (!currentUser) {
@@ -259,8 +265,8 @@ const handleSubmitReview = () => {
     }
 
     try {
-      reviewService.addOrUpdateReview(course.id, reviewForm);
-      refreshReviewData(course.id);
+      await reviewService.addOrUpdateReview(course.id, reviewForm);
+      await refreshReviewData(course.id);
       alert("Đã lưu đánh giá của bạn!");
     } catch (error) {
       console.error(error);
@@ -331,7 +337,7 @@ const handleSubmitReview = () => {
     });
   };
 
-const cancelEdit = () => {
+  const cancelEdit = () => {
     setEditingLessonId(null);
     setEditLesson({});
   };
@@ -476,7 +482,7 @@ const cancelEdit = () => {
                 </button>
               </div>
 
-<div className="space-y-4">
+              <div className="space-y-4">
                 {/* Teacher: Add Lesson Button */}
                 {isTeacher && (
                   <button
@@ -496,14 +502,14 @@ const cancelEdit = () => {
                       type="text"
                       placeholder="Tên bài học"
                       value={newLesson.title}
-                      onChange={(e) => setNewLesson({...newLesson, title: e.target.value})}
+                      onChange={(e) => setNewLesson({ ...newLesson, title: e.target.value })}
                       className="w-full rounded-xl border border-gray-200 px-3 py-2 mb-2"
                     />
                     <input
                       type="text"
                       placeholder="Video URL (tùy chọn)"
                       value={newLesson.video_url}
-                      onChange={(e) => setNewLesson({...newLesson, video_url: e.target.value})}
+                      onChange={(e) => setNewLesson({ ...newLesson, video_url: e.target.value })}
                       className="w-full rounded-xl border border-gray-200 px-3 py-2 mb-2"
                     />
                     <div className="flex gap-2">
@@ -565,7 +571,7 @@ const cancelEdit = () => {
                                   <input
                                     type="text"
                                     value={editLesson.title}
-                                    onChange={(e) => setEditLesson({...editLesson, title: e.target.value})}
+                                    onChange={(e) => setEditLesson({ ...editLesson, title: e.target.value })}
                                     className="w-full rounded-lg border border-gray-200 px-2 py-1"
                                   />
                                   <div className="flex gap-2">
@@ -583,18 +589,17 @@ const cancelEdit = () => {
                                     </button>
                                   </div>
                                 </div>
-) : (
+                              ) : (
                                 /* Display Mode - Different behavior for teacher vs student */
                                 <>
                                   {/* Teacher: Click to expand accordion, Student: Click to navigate */}
                                   {isTeacher ? (
-                                    <div 
+                                    <div
                                       onClick={(e) => toggleLesson(lesson.lesson_id || lesson.id, e)}
                                       className={`flex items-start gap-3 flex-1 cursor-pointer rounded-xl border p-4 mb-3 hover:bg-gray-50 transition-all ${openLessonId === (lesson.lesson_id || lesson.id) ? 'border-blue-300 bg-blue-50' : 'border-gray-100'}`}
                                     >
-                                      <div className={`mt-1 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                                        isEnrolled ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-500"
-                                      }`}>
+                                      <div className={`mt-1 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${isEnrolled ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-500"
+                                        }`}>
                                         {lessonIndex + 1}
                                       </div>
                                       <div className="flex-1">
@@ -626,13 +631,12 @@ const cancelEdit = () => {
                                     </div>
                                   ) : (
                                     /* Student: Navigate to learning page */
-                                    <div 
+                                    <div
                                       onClick={(e) => handleLessonClick(lesson.lesson_id || lesson.id, e)}
                                       className="flex items-start gap-3 flex-1 cursor-pointer"
                                     >
-                                      <div className={`mt-1 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                                        isEnrolled ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-500"
-                                      }`}>
+                                      <div className={`mt-1 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${isEnrolled ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-500"
+                                        }`}>
                                         {lessonIndex + 1}
                                       </div>
                                       <div>
@@ -660,7 +664,7 @@ const cancelEdit = () => {
                                         </span>
                                       )}
                                     </div>
-                                    
+
                                     {/* Teacher Actions - with e.stopPropagation() to prevent accordion toggle */}
                                     {isTeacher && (
                                       <div className="flex gap-1">
@@ -768,21 +772,28 @@ const cancelEdit = () => {
                 ) : (
                   reviews.map((item) => (
                     <div
-                      key={item.id}
+                      key={item.review_id} // Sửa: item.id -> item.review_id
                       className="rounded-2xl border border-gray-100 p-5"
                     >
                       <div className="flex items-center justify-between gap-4 mb-2">
                         <div className="flex items-center gap-2 text-slate-800 font-semibold">
-                          <FiUser />
-                          {item.userName}
+                          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-blue-600 text-xs">
+                            <FiUser />
+                          </div>
+                          {/* Sửa: item.userName -> item.user.name */}
+                          {item.user?.name || "Học viên ẩn danh"}
                         </div>
                         <div className="flex items-center gap-1 text-orange-500">
                           {Array.from({ length: item.rating }).map((_, index) => (
                             <FiStar key={index} fill="currentColor" />
                           ))}
+                          {/* Hiển thị sao rỗng nếu rating < 5 */}
+                          {Array.from({ length: 5 - item.rating }).map((_, index) => (
+                            <FiStar key={`empty-${index}`} className="text-gray-200" />
+                          ))}
                         </div>
                       </div>
-                      <p className="text-slate-600 leading-7">
+                      <p className="text-slate-600 leading-7 mt-2">
                         {item.comment || "Học viên chưa để lại nhận xét chi tiết."}
                       </p>
                     </div>

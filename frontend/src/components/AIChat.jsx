@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import apiClient from "../untils/auth";
+import apiClient from "../untils/apiClient";
 import { getCurrentUser, getCurrentUserId } from "../untils/auth";
 import {
   saveMessageToFirestore,

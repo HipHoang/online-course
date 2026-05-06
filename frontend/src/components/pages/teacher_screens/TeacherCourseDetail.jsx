@@ -36,7 +36,7 @@ const TeacherCourseDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Forms
+
   const [showAddLesson, setShowAddLesson] = useState(false);
   const [newLesson, setNewLesson] = useState({
     title: "", description: "", content: "", video_url: "", order_index: 0
@@ -45,19 +45,21 @@ const TeacherCourseDetail = () => {
   const [editingLessonId, setEditingLessonId] = useState(null);
   const [editLesson, setEditLesson] = useState({});
 
-  // Quiz form
-  const [showQuizForm, setShowQuizForm] = useState(null); // lesson_id
+
+  const [showQuizForm, setShowQuizForm] = useState(null);
   const [quizForm, setQuizForm] = useState({
     title: '',
     questions: [{ content: '', options: ['', '', '', ''], correct_idx: 0 }]
   });
 
-  // States
+
   const [expandedLessonId, setExpandedLessonId] = useState(null);
   const [uploading, setUploading] = useState(false);
 
   const currentUser = getCurrentUser();
   const isTeacher = currentUser?.role === "teacher" || currentUser?.role === "admin";
+
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -82,18 +84,33 @@ const TeacherCourseDetail = () => {
 
   const handleAddLesson = async () => {
     if (!newLesson.title.trim()) return alert("Vui lòng nhập tên bài học");
+
+    setIsSaving(true); // Bắt đầu lưu
     try {
-      const createdLesson = await lessonService.createLesson({
-        course_id: parseInt(courseId), ...newLesson
-      });
+      const payload = {
+        course_id: parseInt(courseId),
+        title: newLesson.title.trim(),
+        description: newLesson.description,
+        content: newLesson.content,
+        video_url: newLesson.video_url,
+        document_url: newLesson.document_url, // Đảm bảo truyền đủ trường này
+        order_index: newLesson.order_index
+      };
+
+      const createdLesson = await lessonService.createLesson(payload);
+
       if (createdLesson) {
         setLessons([...lessons, createdLesson]);
         setShowAddLesson(false);
-        setNewLesson({ title: "", description: "", content: "", video_url: "", order_index: 0 });
+        // Reset form bao gồm cả document_url
+        setNewLesson({ title: "", description: "", content: "", video_url: "", document_url: "", order_index: 0 });
         alert("Thêm bài học thành công!");
       }
     } catch (err) {
-      alert("Lỗi khi thêm bài học");
+      console.error(err);
+      alert(err.response?.data?.message || "Lỗi khi thêm bài học");
+    } finally {
+      setIsSaving(false); // Kết thúc lưu
     }
   };
 
@@ -134,18 +151,41 @@ const TeacherCourseDetail = () => {
   };
 
   const uploadFile = async (lessonId, file, field) => {
+    if (!file) return;
     setUploading(true);
     try {
+      // Gọi API upload
       const result = await lessonService.uploadLessonFile(lessonId, file, field);
-      const lessonsCopy = [...lessons];
-      const lessonIdx = lessonsCopy.findIndex(l => l.lesson_id === lessonId);
-      lessonsCopy[lessonIdx][field + '_url'] = result.url;
-      setLessons(lessonsCopy);
-      alert(`${field === 'video' ? 'Video' : 'Document'} uploaded!`);
-    } catch {
-      alert('Upload failed');
+      const uploadedUrl = result.url;
+
+      if (lessonId === 'new') {
+        // Trường hợp: Form Thêm bài học mới
+        setNewLesson(prev => ({
+          ...prev,
+          [field + '_url']: uploadedUrl
+        }));
+      } else {
+        // Trường hợp: Form Chỉnh sửa bài học đang có
+        // 1. Cập nhật state editLesson để đồng bộ UI đang sửa
+        setEditLesson(prev => ({
+          ...prev,
+          [field + '_url']: uploadedUrl
+        }));
+
+        // 2. Cập nhật vào danh sách lessons để hiển thị ngay kết quả
+        setLessons(prevLessons =>
+          prevLessons.map(l =>
+            l.lesson_id === lessonId ? { ...l, [field + '_url']: uploadedUrl } : l
+          )
+        );
+      }
+      alert(`Tải lên ${field === 'video' ? 'Video' : 'Tài liệu'} thành công!`);
+    } catch (error) {
+      console.error("Upload error:", error);
+      alert('Tải lên thất bại');
+    } finally {
+      setUploading(false);
     }
-    setUploading(false);
   };
 
   const handleCreateQuiz = async (lessonId) => {
@@ -160,6 +200,55 @@ const TeacherCourseDetail = () => {
     }
   };
 
+  const handleFileChange = async (lessonId, e, field) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const result = await lessonService.uploadLessonFile(lessonId, file, field);
+      if (lessonId === 'temp') {
+        setNewLesson(prev => ({ ...prev, [field + '_url']: result.url }));
+      } else {
+        setEditLesson(prev => ({ ...prev, [field + '_url']: result.url }));
+      }
+    } catch (err) {
+      console.error(`Upload ${field} error:`, err);
+      alert(`Lỗi khi tải lên ${field === 'video' ? 'video' : 'tài liệu'}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const LessonFileInputs = ({ lessonId, uploading, onFileChange }) => (
+    <div className="grid grid-cols-2 gap-3">
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-2">
+          {uploading ? "Đang tải video..." : "Video bài học"}
+        </label>
+        <input
+          type="file"
+          accept="video/*"
+          disabled={uploading}
+          onChange={(e) => onFileChange(lessonId, e, 'video')}
+          className="w-full file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-[#0B5CFF] file:text-white hover:file:bg-blue-700 disabled:opacity-50"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-2">
+          {uploading ? "Đang tải tài liệu..." : "Tài liệu đính kèm"}
+        </label>
+        <input
+          type="file"
+          accept=".pdf,.doc,.docx"
+          disabled={uploading}
+          onChange={(e) => onFileChange(lessonId, e, 'document')}
+          className="w-full file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-emerald-500 file:text-white hover:file:bg-emerald-600 disabled:opacity-50"
+        />
+      </div>
+    </div>
+  );
+
   const addQuizQuestion = () => {
     setQuizForm({
       ...quizForm,
@@ -167,8 +256,9 @@ const TeacherCourseDetail = () => {
     });
   };
 
+
   const toggleLessonExpand = (lessonId) => {
-    setExpandedLessonId(expandedLessonId === lesson.lesson_id ? null : lessonId);
+    setExpandedLessonId(expandedLessonId === lessonId ? null : lessonId);
   };
 
   const cancelEdit = () => {
@@ -264,8 +354,31 @@ const TeacherCourseDetail = () => {
               </div>
             </div>
             <div className="flex gap-3">
-              <button onClick={handleAddLesson} className="flex items-center gap-2 px-5 py-3 bg-[#0B5CFF] text-white rounded-xl font-semibold hover:bg-blue-700">
-                <FiSave /> Lưu
+              <button
+                onClick={handleAddLesson}
+                disabled={isSaving || uploading}
+                className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all shadow-md
+    ${(isSaving || uploading)
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-[#0B5CFF] hover:bg-blue-700 text-white active:scale-95"
+                  }`}
+              >
+                {uploading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    <span>Đang tải video...</span>
+                  </>
+                ) : isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    <span>Đang lưu...</span>
+                  </>
+                ) : (
+                  <>
+                    <FiSave />
+                    <span>Lưu bài học</span>
+                  </>
+                )}
               </button>
               <button onClick={() => { setShowAddLesson(false); setNewLesson({ title: '', description: '', content: '', video_url: '', document_url: '', order_index: 0 }); }} className="flex items-center gap-2 px-5 py-3 border border-gray-200 text-slate-700 rounded-xl font-semibold hover:bg-gray-50">
                 <FiX /> Hủy

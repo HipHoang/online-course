@@ -1,4 +1,4 @@
-import apiClient from "../untils/auth";
+import apiClient from "../untils/apiClient";
 
 /**
  * enrollmentService - phiên bản dùng API (KHÔNG dùng localStorage)

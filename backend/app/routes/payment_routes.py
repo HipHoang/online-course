@@ -101,3 +101,53 @@ def vnpay_return():
             db.session.rollback()
             print("ERROR VNPAY CALLBACK:", str(e))
             return redirect(f"http://localhost:3000/payment-failed?course_id={order.course_id}")
+
+@payment_bp.route('/vnpay_ipn', methods=['GET'])
+def vnpay_ipn():
+    vnp_params = request.args.to_dict()
+    
+    # 1. Kiểm tra chữ ký (Checksum)
+    if PaymentService.validate_response(vnp_params):
+        order_id = vnp_params.get('vnp_TxnRef')
+        vnp_response_code = vnp_params.get('vnp_ResponseCode')
+        vnp_amount = int(vnp_params.get('vnp_Amount')) / 100
+        
+        order = Order.query.get(order_id)
+
+        if order:
+            # 2. Kiểm tra số tiền (Số tiền trong DB phải khớp với VNPay gửi về)
+            if order.amount == vnp_amount:
+                # 3. Kiểm tra trạng thái đơn hàng (Tránh xử lý trùng lặp)
+                if order.status == 'pending':
+                    if vnp_response_code == "00":
+                        # XỬ LÝ THÀNH CÔNG
+                        try:
+                            order.status = 'success'
+                            order.vnp_transaction_no = vnp_params.get('vnp_TransactionNo')
+                            
+                            # Tạo Enrollment & Payment (Giống logic bên return của bạn)
+                            new_enrollment = Enrollment(user_id=order.user_id, course_id=order.course_id, status='active')
+                            db.session.add(new_enrollment)
+                            db.session.flush()
+                            
+                            new_payment = Payment(enrollment_id=new_enrollment.enrollment_id, amount=order.amount, method='VNPay', status='completed')
+                            db.session.add(new_payment)
+                            
+                            db.session.commit()
+                            return jsonify({"RspCode": "00", "Message": "Confirm Success"})
+                        except Exception as e:
+                            db.session.rollback()
+                            return jsonify({"RspCode": "99", "Message": "Unknown error"})
+                    else:
+                        # THANH TOÁN THẤT BẠI
+                        order.status = 'failed'
+                        db.session.commit()
+                        return jsonify({"RspCode": "00", "Message": "Confirm Success"})
+                else:
+                    return jsonify({"RspCode": "02", "Message": "Order already confirmed"})
+            else:
+                return jsonify({"RspCode": "04", "Message": "Invalid amount"})
+        else:
+            return jsonify({"RspCode": "01", "Message": "Order not found"})
+    else:
+        return jsonify({"RspCode": "97", "Message": "Invalid Checksum"})

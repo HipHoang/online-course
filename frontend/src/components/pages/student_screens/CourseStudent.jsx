@@ -9,6 +9,7 @@ import {
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { getAccessToken } from "../../../untils/auth";
+import { courseService } from "../../../services/courseService";
 
 const CourseStudent = () => {
   const navigate = useNavigate();
@@ -21,27 +22,13 @@ const CourseStudent = () => {
   useEffect(() => {
     const fetchMyCourses = async () => {
       try {
-        const token = getAccessToken();
+        setLoading(true);
+        
+        // Sử dụng service thay vì axios trực tiếp
+        const data = await courseService.getMyCourses();
 
-        if (!token) {
-          console.warn("No token found");
-          setCourses([]);
-          return;
-        }
-
-        const res = await axios.get(
-          "http://127.0.0.1:5000/api/courses/my-courses",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        console.log("My courses API:", res.data);
-
-        // Defensive mapping
-        const normalized = (res.data || []).map((c) => ({
+        // Chuẩn hóa dữ liệu (Defensive mapping) theo logic của bạn
+        const normalized = (data || []).map((c) => ({
           courseId: c.id,
           title: c.title || "",
           image: c.image || "",
@@ -60,7 +47,7 @@ const CourseStudent = () => {
 
         setCourses(normalized);
       } catch (error) {
-        console.error("Fetch my courses error:", error);
+        console.error("Lỗi khi tải khóa học cá nhân:", error);
         setCourses([]);
       } finally {
         setLoading(false);
@@ -69,8 +56,7 @@ const CourseStudent = () => {
 
     fetchMyCourses();
   }, []);
-
-
+  
   const filteredCourses = (courses || []).filter((course) => {
   const title = course.title || "";
   const category = course.category || "";

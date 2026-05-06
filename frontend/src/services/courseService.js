@@ -1,4 +1,4 @@
-import apiClient from "../untils/auth";
+import apiClient from "../untils/apiClient";
 
 
 export const courseService = {
@@ -25,6 +25,11 @@ export const courseService = {
       console.error("getAllCourses ERROR:", error.response?.data || error);
       return [];
     }
+  },
+  getMyCourses: async () => {
+    // apiClient đã cấu hình sẵn baseURL và Header Authorization
+    const res = await apiClient.get("/courses/my-courses");
+    return res.data; 
   },
 
     async createCourse(courseData) {

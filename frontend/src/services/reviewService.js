@@ -1,92 +1,51 @@
+import apiClient from "../untils/apiClient";
 import { getCurrentUser } from "../untils/auth";
 
-const KEY = "courseReviews";
-
-const getAllReviews = () => {
-  const raw = localStorage.getItem(KEY);
-  return raw ? JSON.parse(raw) : {};
-};
-
-const saveAllReviews = (data) => {
-  localStorage.setItem(KEY, JSON.stringify(data));
-};
-
 export const reviewService = {
-  getCourseReviews(courseId) {
-    const all = getAllReviews();
-    return all[courseId] || [];
-  },
-
-  addOrUpdateReview(courseId, payload) {
-    const currentUser = getCurrentUser();
-    if (!currentUser) throw new Error("USER_NOT_LOGGED_IN");
-
-    const all = getAllReviews();
-    const courseReviews = all[courseId] || [];
-
-    const existedIndex = courseReviews.findIndex(
-      (item) => Number(item.userId) === Number(currentUser.id)
-    );
-
-    const review = {
-      id:
-        existedIndex >= 0
-          ? courseReviews[existedIndex].id
-          : Date.now(),
-      userId: currentUser.id,
-      userName: currentUser.name,
-      courseId: Number(courseId),
-      rating: Number(payload.rating),
-      comment: payload.comment?.trim() || "",
-      createdAt:
-        existedIndex >= 0
-          ? courseReviews[existedIndex].createdAt
-          : new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    if (existedIndex >= 0) {
-      courseReviews[existedIndex] = review;
-    } else {
-      courseReviews.unshift(review);
+  // 1. Lấy danh sách đánh giá (Có xử lý phân trang)
+  async getCourseReviews(courseId) {
+    try {
+      const res = await apiClient.get(`/reviews/courses/${courseId}`);
+      // Backend trả về: { status: "success", data: { data: [...], total: 10, ... } }
+      // Vì vậy chúng ta cần lấy res.data.data.data
+      return res.data.data.data || []; 
+    } catch (error) {
+      console.error("Error fetching reviews:", error);
+      return [];
     }
-
-    all[courseId] = courseReviews;
-    saveAllReviews(all);
-
-    return review;
   },
 
-  getMyReview(courseId) {
+  // 2. Lấy đánh giá của tôi
+  async getMyReview(courseId) {
     const currentUser = getCurrentUser();
     if (!currentUser) return null;
 
-    const courseReviews = this.getCourseReviews(courseId);
-    return (
-      courseReviews.find(
-        (item) => Number(item.userId) === Number(currentUser.id)
-      ) || null
-    );
+    const reviews = await this.getCourseReviews(courseId);
+    // Bây giờ 'reviews' đã là một mảng, hàm .find() sẽ hoạt động chính xác
+    return reviews.find(item => Number(item.user_id) === Number(currentUser.id)) || null;
   },
 
-  getCourseReviewStats(courseId) {
-    const reviews = this.getCourseReviews(courseId);
+  // 3. Tính toán thống kê
+  async getCourseReviewStats(courseId) {
+    const reviews = await this.getCourseReviews(courseId);
 
-    if (!reviews.length) {
-      return {
-        average: 0,
-        total: 0,
-      };
+    if (!Array.isArray(reviews) || !reviews.length) {
+      return { average: 0, total: 0 };
     }
 
-    const totalRating = reviews.reduce(
-      (sum, item) => sum + Number(item.rating || 0),
-      0
-    );
-
+    const totalRating = reviews.reduce((sum, item) => sum + Number(item.rating || 0), 0);
     return {
       average: Number((totalRating / reviews.length).toFixed(1)),
       total: reviews.length,
     };
   },
+
+  // 4. Gửi đánh giá mới
+  async addOrUpdateReview(courseId, payload) {
+    const res = await apiClient.post(`/reviews/courses/${courseId}`, {
+      rating: payload.rating,
+      comment: payload.comment
+    });
+    return res.data.data;
+  }
 };

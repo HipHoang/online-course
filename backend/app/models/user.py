@@ -17,7 +17,7 @@ class User(db.Model):
     provider = db.Column(db.String(50), default="local")
     # Relationships
     enrollments = db.relationship('Enrollment', backref='user', lazy=True)
-    posts = db.relationship('Post', backref='author', lazy=True)
+    posts = db.relationship('Post', back_populates='author', lazy=True)
 
     def set_password(self, password):
         """Hàm này dùng để băm mật khẩu và lưu vào database"""

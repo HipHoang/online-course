@@ -40,6 +40,7 @@ def create_app():
     from app.routes.ai_routes import ai_bp
     from app.routes.chat_routes import chat_bp
     from app.routes.pathway_routes import pathway_bp
+    from app.routes.post_routes import post_bp
     # ... Đăng ký thêm các route khác tương tự
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
